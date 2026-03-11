@@ -6,7 +6,7 @@
 <title>VitalTrack</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --bg: #0a0e1a; --surface: #111827; --surface2: #1a2235; --surface3: #1f2d42;
@@ -246,11 +246,10 @@
     <div class="auth-feature"><div class="auth-feature-icon">🏋️</div><div class="auth-feature-label">Exercise Log</div></div>
     <div class="auth-feature"><div class="auth-feature-icon">⚖️</div><div class="auth-feature-label">Body Metrics</div></div>
   </div>
-  <button class="btn btn-primary btn-full" id="auth-btn" style="max-width:340px;padding:16px;font-size:16px;" onclick="startMicrosoftAuth()">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg>
-    Sign in with Microsoft
+  <button class="btn btn-primary btn-full" id="auth-btn" style="max-width:340px;padding:16px;font-size:16px;" onclick="startApp()">
+    ✦ Get Started
   </button>
-  <p class="text-sm text-muted mt-3">Your data is stored in your OneDrive</p>
+  <p class="text-sm text-muted mt-3">Your data is synced to the cloud</p>
 </div>
 
 <!-- PROFILE SELECTOR -->
@@ -569,7 +568,7 @@
             </div>
           </div>
           <div>
-            <div class="card"><div class="card-title">☁️ OneDrive Storage</div><div id="onedrive-status-card"></div></div>
+            <div class="card"><div class="card-title">☁️ Supabase Storage</div><div id="supabase-status-card"></div></div>
             <div class="card"><div class="card-title">🔔 Reminders</div>
               <div class="text-sm text-muted" style="margin-bottom:14px;">Get daily prompts to log your data.</div>
               <div id="notif-permission-row" style="margin-bottom:14px;"></div>
@@ -685,95 +684,93 @@ let pendingFoodItem = null;
 let currentRange = '7d';
 
 // ============================================================
-// MSAL CONFIG — Real Microsoft OneDrive via Microsoft Graph
-// To use with your own Azure App Registration:
-//   1. Go to portal.azure.com → Azure Active Directory → App Registrations
-//   2. New registration: any name, Accounts in any org + personal, 
-//      Redirect URI = SPA, set to the URL where this file is hosted
-//   3. Copy the Application (client) ID below
-//   4. Under API Permissions add: Files.ReadWrite, User.Read
+// SUPABASE CONFIG
+// Replace the values below with your project's URL and anon key.
+// Find them in: Supabase Dashboard → Project Settings → API
+//
+// Also run this SQL in your Supabase SQL Editor before first use:
+//
+//   create table vitaltrack (
+//     device_id text primary key,
+//     data jsonb not null,
+//     updated_at timestamptz default now()
+//   );
+//
+//   -- Allow all reads/writes (no auth required):
+//   alter table vitaltrack enable row level security;
+//   create policy "allow all" on vitaltrack for all using (true) with check (true);
 // ============================================================
-const MSAL_CONFIG = {
-  auth: {
-    clientId: 'YOUR_CLIENT_ID_HERE', // <-- Replace with your Azure App Client ID
-    authority: 'https://login.microsoftonline.com/common',
-    redirectUri: window.location.origin + window.location.pathname
-  },
-  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
-};
+const SUPABASE_URL  = 'https://bhcwkaigwydcwhhbdplo.supabase.co';   // e.g. https://xxxx.supabase.co
+const SUPABASE_ANON = 'sb_publishable_wWVs26dEfUClg8OR0V0csA_HDfii7TW';
 
-const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
-const ONEDRIVE_FOLDER = 'VitalTrack';
-const ONEDRIVE_FILE   = 'vitaltrack_data.json';
+let supabase = null;
+let supabaseEnabled = false;
 
-let msalInstance = null;
-let msalAccount   = null;
-let oneDriveEnabled = false;
-
-function initMSAL() {
-  try {
-    if (typeof msal === 'undefined') { console.warn('MSAL not loaded'); return; }
-    msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
-    // Handle redirect after login
-    msalInstance.handleRedirectPromise().then(resp => {
-      if (resp) finishLogin(resp.account);
-    }).catch(e => console.error('MSAL redirect error', e));
-  } catch(e) { console.error('MSAL init error', e); }
-}
-
-async function getGraphToken() {
-  if (!msalInstance || !msalAccount) return null;
-  try {
-    const resp = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: msalAccount });
-    return resp.accessToken;
-  } catch(e) {
-    try {
-      const resp = await msalInstance.acquireTokenPopup({ scopes: GRAPH_SCOPES });
-      msalAccount = resp.account;
-      return resp.accessToken;
-    } catch(e2) { console.error('Token error', e2); return null; }
+// A stable device ID stored locally — acts as the record key in Supabase
+function getDeviceId() {
+  let id = localStorage.getItem('vitaltrack_device_id');
+  if (!id) {
+    id = 'vt_' + crypto.randomUUID();
+    localStorage.setItem('vitaltrack_device_id', id);
   }
+  return id;
 }
 
-// ---- OneDrive read / write ----
-async function saveToOneDrive() {
-  const token = await getGraphToken();
-  if (!token) return false;
+function initSupabase() {
+  try {
+    if (typeof window.supabase === 'undefined' && typeof supabaseJs === 'undefined') {
+      // Try the UMD global name from the CDN
+      console.warn('Supabase not loaded');
+      return;
+    }
+    const client = (window.supabase?.createClient || supabaseJs?.createClient);
+    if (!client) { console.warn('Supabase createClient not found'); return; }
+    if (SUPABASE_URL === 'YOUR_SUPABASE_URL' || SUPABASE_ANON === 'YOUR_SUPABASE_ANON_KEY') {
+      console.warn('Supabase not configured — running in local-only mode');
+      return;
+    }
+    supabase = client(SUPABASE_URL, SUPABASE_ANON);
+    supabaseEnabled = true;
+  } catch(e) { console.error('Supabase init error', e); }
+}
+
+// ---- Supabase read / write ----
+async function saveToSupabase() {
+  if (!supabase || !supabaseEnabled) return false;
   setSyncStatus('pending');
   try {
-    const payload = JSON.stringify({
+    const payload = {
       profiles: state.profiles, data: state.data,
       settings: state.settings, savedMeals: state.savedMeals,
       scoreWeights: state.scoreWeights
-    }, null, 2);
-    // Ensure folder exists, then upload file
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_FOLDER}/${ONEDRIVE_FILE}:/content`;
-    const resp = await fetch(url, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: payload
-    });
-    if (resp.ok) { setSyncStatus('synced'); return true; }
-    else { setSyncStatus('error'); return false; }
-  } catch(e) { setSyncStatus('error'); return false; }
+    };
+    const { error } = await supabase
+      .from('vitaltrack')
+      .upsert({ device_id: getDeviceId(), data: payload, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    setSyncStatus('synced');
+    return true;
+  } catch(e) { console.error('Supabase save error', e); setSyncStatus('error'); return false; }
 }
 
-async function loadFromOneDrive() {
-  const token = await getGraphToken();
-  if (!token) return false;
+async function loadFromSupabase() {
+  if (!supabase || !supabaseEnabled) return false;
   try {
-    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_FOLDER}/${ONEDRIVE_FILE}:/content`;
-    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (resp.status === 404) return true; // No file yet — fresh start
-    if (!resp.ok) return false;
-    const saved = await resp.json();
+    const { data: row, error } = await supabase
+      .from('vitaltrack')
+      .select('data')
+      .eq('device_id', getDeviceId())
+      .maybeSingle();
+    if (error) throw error;
+    if (!row) return true; // No record yet — fresh start
+    const saved = row.data;
     state.profiles     = saved.profiles     || [];
     state.data         = saved.data         || {};
     state.settings     = saved.settings     || {};
     state.savedMeals   = saved.savedMeals   || {};
     state.scoreWeights = saved.scoreWeights || { sleep:30, food:25, exercise:25, weight:20 };
     return true;
-  } catch(e) { console.error('OneDrive load error', e); return false; }
+  } catch(e) { console.error('Supabase load error', e); return false; }
 }
 
 // ---- Fallback local storage ----
@@ -800,14 +797,14 @@ function loadFromLocalStorage() {
   } catch(e) {}
 }
 
-// Master save — writes to OneDrive if available, always writes local too
+// Master save — writes to Supabase if available, always writes local too
 let saveTimer = null;
 async function saveToStorage() {
   setSyncStatus('pending');
   saveToLocalStorage();
-  if (oneDriveEnabled) {
+  if (supabaseEnabled) {
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(async () => { await saveToOneDrive(); }, 1200);
+    saveTimer = setTimeout(async () => { await saveToSupabase(); }, 1200);
   } else {
     setSyncStatus('synced');
   }
@@ -820,65 +817,37 @@ function setSyncStatus(s) {
   const lbl = document.getElementById('sync-label');
   if (!dot) return;
   dot.className = 'sync-dot ' + s;
-  lbl.textContent = s === 'synced' ? (oneDriveEnabled ? '☁️ Synced' : 'Saved') :
+  lbl.textContent = s === 'synced' ? (supabaseEnabled ? '☁️ Synced' : 'Saved') :
                     s === 'pending' ? 'Saving...' : '⚠️ Sync Error';
 }
 
 // ============================================================
-// AUTH
+// AUTH / STARTUP
 // ============================================================
-async function startMicrosoftAuth() {
-  const btn = document.querySelector('#auth-screen .btn-primary');
+async function startApp() {
+  const btn = document.getElementById('auth-btn');
   btn.disabled = true;
-  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Connecting...';
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;"></div> Loading...';
 
-  // Check if real MSAL is configured
-  if (msalInstance && MSAL_CONFIG.auth.clientId !== 'YOUR_CLIENT_ID_HERE') {
-    try {
-      let accounts = msalInstance.getAllAccounts();
-      if (accounts.length > 0) {
-        await finishLogin(accounts[0]);
-      } else {
-        await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
-        accounts = msalInstance.getAllAccounts();
-        if (accounts.length > 0) await finishLogin(accounts[0]);
-      }
-      return;
-    } catch(e) {
-      console.error('MSAL login error', e);
-      showToast('Microsoft login failed — using local storage');
+  // Try Supabase first, fall back to local
+  if (supabaseEnabled) {
+    setSyncStatus('pending');
+    const loaded = await loadFromSupabase();
+    if (loaded) {
+      // Mirror to localStorage for offline resilience
+      saveToLocalStorage();
+    } else {
+      loadFromLocalStorage();
     }
+    setSyncStatus('synced');
+  } else {
+    loadFromLocalStorage();
   }
 
-  // Demo / fallback mode
-  setTimeout(() => {
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg> Sign in with Microsoft';
-    finishLoginLocal();
-  }, 800);
-}
-
-function finishLoginLocal() {
   state.isAuthenticated = true;
-  oneDriveEnabled = false;
-  loadFromStorage();
-  afterLogin();
-}
+  btn.disabled = false;
+  btn.innerHTML = '✦ Get Started';
 
-async function finishLogin(account) {
-  msalAccount = account;
-  oneDriveEnabled = true;
-  state.isAuthenticated = true;
-
-  // Try to load from OneDrive first, fall back to local
-  setSyncStatus('pending');
-  const loaded = await loadFromOneDrive();
-  if (!loaded) loadFromLocalStorage();
-  setSyncStatus('synced');
-  afterLogin();
-}
-
-function afterLogin() {
   document.getElementById('auth-screen').classList.add('hidden');
   if (state.profiles.length === 0) {
     showAddProfileModal(true);
@@ -888,18 +857,13 @@ function afterLogin() {
 }
 
 function signOut() {
-  if (msalInstance && msalAccount) {
-    msalInstance.logoutPopup({ account: msalAccount }).catch(() => {});
-    msalAccount = null;
-  }
-  oneDriveEnabled = false;
   state.isAuthenticated = false;
   state.currentProfile = null;
   document.getElementById('app').classList.add('hidden');
   document.getElementById('auth-screen').classList.remove('hidden');
-  const btn = document.querySelector('#auth-screen .btn-primary');
+  const btn = document.getElementById('auth-btn');
   btn.disabled = false;
-  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg> Sign in with Microsoft';
+  btn.innerHTML = '✦ Get Started';
 }
 
 // ============================================================
@@ -2374,33 +2338,8 @@ function loadSettingsPage() {
   document.getElementById('set-water-goal').value = settings.waterGoal || 8;
   document.getElementById('set-target-weight').value = settings.targetWeight || '';
 
-  // OneDrive status
-  const odEl = document.getElementById('onedrive-status-card');
-  if (odEl) {
-    if (oneDriveEnabled && msalAccount) {
-      odEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div class="sync-dot synced" style="width:10px;height:10px;"></div>
-          <div>
-            <div style="font-weight:600;font-size:14px;">Connected to OneDrive</div>
-            <div class="text-xs text-muted">${msalAccount.username || msalAccount.name || 'Microsoft Account'}</div>
-          </div>
-        </div>
-        <div class="text-xs text-muted">Data saved to: OneDrive / ${ONEDRIVE_FOLDER} / ${ONEDRIVE_FILE}</div>
-        <button class="btn btn-secondary btn-sm mt-3" onclick="saveToOneDrive().then(()=>showToast('Synced to OneDrive ✓'))">🔄 Sync Now</button>`;
-    } else {
-      odEl.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div class="sync-dot" style="width:10px;height:10px;background:var(--text-dim);"></div>
-          <div>
-            <div style="font-weight:600;font-size:14px;">Local Storage Only</div>
-            <div class="text-xs text-muted">Data is saved on this device only</div>
-          </div>
-        </div>
-        <div class="text-xs text-muted" style="margin-bottom:10px;">To enable OneDrive sync, sign out and sign in with your Microsoft account. You'll need to add your Azure App Client ID to the MSAL_CONFIG at the top of the script.</div>
-        <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app" target="_blank" class="btn btn-secondary btn-sm">📖 Setup Guide</a>`;
-    }
-  }
+  // Supabase status — rendered by renderSupabaseStatusCard(), refresh it here too
+  renderSupabaseStatusCard();
 
   // Notifications
   renderNotifPermissionRow();
@@ -2755,12 +2694,29 @@ function applyScreenshotData() {
 // INIT
 // ============================================================
 window.addEventListener('load', () => {
-  initMSAL();
+  initSupabase();
+  renderSupabaseStatusCard();
   updateDateDisplays();
   // Check reminders every minute
   checkReminders();
   setInterval(checkReminders, 60000);
 });
+
+function renderSupabaseStatusCard() {
+  const el = document.getElementById('supabase-status-card');
+  if (!el) return;
+  const deviceId = getDeviceId();
+  if (supabaseEnabled) {
+    el.innerHTML = `
+      <div class="text-sm" style="color:var(--success);margin-bottom:8px;">✓ Connected to Supabase</div>
+      <div class="text-xs text-muted">Device ID: <span style="font-family:monospace;font-size:11px;">${deviceId.slice(0,20)}…</span></div>
+      <div class="text-xs text-muted mt-2">Your data syncs automatically in the background. Keep this device ID safe — it's how your data is identified.</div>`;
+  } else {
+    el.innerHTML = `
+      <div class="text-sm" style="color:var(--exercise);margin-bottom:8px;">⚠ Running in local-only mode</div>
+      <div class="text-xs text-muted">Add your <code style="background:var(--surface2);padding:1px 4px;border-radius:4px;">SUPABASE_URL</code> and <code style="background:var(--surface2);padding:1px 4px;border-radius:4px;">SUPABASE_ANON</code> at the top of the script to enable cloud sync.</div>`;
+  }
+}
 
 // Re-render charts and check reminders when tab becomes visible
 document.addEventListener('visibilitychange', () => {
