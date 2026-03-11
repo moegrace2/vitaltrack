@@ -246,10 +246,11 @@
     <div class="auth-feature"><div class="auth-feature-icon">🏋️</div><div class="auth-feature-label">Exercise Log</div></div>
     <div class="auth-feature"><div class="auth-feature-icon">⚖️</div><div class="auth-feature-label">Body Metrics</div></div>
   </div>
+  <input type="text" class="form-input" id="username-input" placeholder="Enter a username" style="max-width:340px;margin-bottom:12px;text-align:center;" autocomplete="off" autocapitalize="off" spellcheck="false">
   <button class="btn btn-primary btn-full" id="auth-btn" style="max-width:340px;padding:16px;font-size:16px;" onclick="startApp()">
     ✦ Get Started
   </button>
-  <p class="text-sm text-muted mt-3">Your data is synced to the cloud</p>
+  <p class="text-sm text-muted mt-3">Same username = same data on any device</p>
 </div>
 
 <!-- PROFILE SELECTOR -->
@@ -708,12 +709,7 @@ let supabaseEnabled = false;
 
 // A stable device ID stored locally — acts as the record key in Supabase
 function getDeviceId() {
-  let id = localStorage.getItem('vitaltrack_device_id');
-  if (!id) {
-    id = 'vt_' + crypto.randomUUID();
-    localStorage.setItem('vitaltrack_device_id', id);
-  }
-  return id;
+  return 'vt_user_' + (localStorage.getItem('vitaltrack_username') || 'default');
 }
 
 function initSupabase() {
@@ -825,6 +821,11 @@ function setSyncStatus(s) {
 // AUTH / STARTUP
 // ============================================================
 async function startApp() {
+  const input = document.getElementById('username-input');
+  const username = input ? input.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') : '';
+  if (!username) { input.style.borderColor = 'var(--danger)'; input.focus(); return; }
+  localStorage.setItem('vitaltrack_username', username);
+
   const btn = document.getElementById('auth-btn');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;"></div> Loading...';
