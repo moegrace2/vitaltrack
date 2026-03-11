@@ -1,0 +1,2773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>VitalTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e1a; --surface: #111827; --surface2: #1a2235; --surface3: #1f2d42;
+    --border: rgba(255,255,255,0.07); --text: #e8edf5; --text-muted: #6b7a94; --text-dim: #3d4f68;
+    --accent: #3b82f6; --accent2: #06b6d4; --sleep: #818cf8; --food: #34d399;
+    --exercise: #f59e0b; --weight: #f472b6; --danger: #ef4444; --success: #22c55e;
+    --radius: 16px; --radius-sm: 10px;
+    --sidebar-w: 220px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; overflow: hidden; }
+  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+  /* === SHELL === */
+  #app { display: flex; flex-direction: column; height: 100vh; }
+  #topbar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg); z-index: 100; }
+  #topbar .brand { font-family: 'DM Serif Display', serif; font-size: 22px; letter-spacing: -0.5px; }
+  #topbar .brand span { color: var(--accent); }
+  #app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* === MOBILE NAV (bottom bar) === */
+  #navbar { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(10,14,26,0.96); backdrop-filter: blur(16px); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding: 8px 0 max(8px,env(safe-area-inset-bottom)); z-index: 100; }
+  .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 10px; border: none; background: none; color: var(--text-muted); cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 10px; font-weight: 500; transition: color 0.2s; border-radius: 10px; }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 21px; height: 21px; }
+
+  /* === CONTENT === */
+  #content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 90px; }
+
+  /* === CARDS === */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+  .card-title { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 16px; }
+  .card-subtitle { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 12px; }
+
+  /* === SCORE RING === */
+  .score-display { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px 0; }
+  .score-ring-wrap { position: relative; width: 160px; height: 160px; }
+  .score-ring-wrap svg { transform: rotate(-90deg); width: 160px; height: 160px; }
+  .score-ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .score-number { font-family: 'DM Serif Display', serif; font-size: 44px; line-height: 1; }
+  .score-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* === CATEGORY SCORES === */
+  .cat-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .cat-score { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; border: 1px solid var(--border); }
+  .cat-score-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 6px; font-weight: 600; }
+  .cat-score-val { font-family: 'DM Serif Display', serif; font-size: 28px; }
+  .cat-score-bar { height: 3px; background: var(--surface3); border-radius: 2px; margin-top: 8px; }
+  .cat-score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+
+  /* === FORMS === */
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s; }
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text-dim); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  select.form-input { cursor: pointer; }
+
+  /* === BUTTONS === */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+  .btn-primary { background: var(--accent); color: #fff; } .btn-primary:hover { background: #2563eb; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); } .btn-secondary:hover { background: var(--surface3); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+  .btn-sm { padding: 7px 14px; font-size: 13px; } .btn-full { width: 100%; } .btn-icon { width: 36px; height: 36px; padding: 0; border-radius: 8px; }
+
+  /* === DATE NAV === */
+  .date-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .date-nav-btn { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text); font-size: 18px; }
+  .date-nav-btn:hover { background: var(--surface3); }
+  .date-display { flex: 1; text-align: center; font-size: 15px; font-weight: 500; cursor: pointer; }
+
+  /* === TOGGLE === */
+  .toggle-wrap { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .toggle-wrap:last-child { border-bottom: none; }
+  .toggle-label { font-size: 14px; }
+  .toggle { position: relative; width: 44px; height: 24px; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--surface3); border-radius: 12px; transition: 0.2s; }
+  .toggle-slider:before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .toggle-slider { background: var(--accent); }
+  .toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
+
+  /* === MODAL === */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal { background: var(--surface); border-radius: 24px 24px 0 0; padding: 24px 20px; width: 100%; max-height: 85vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-handle { width: 40px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-family: 'DM Serif Display', serif; font-size: 20px; margin-bottom: 20px; }
+
+  /* === MISC COMPONENTS === */
+  .sync-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .sync-dot.synced { background: var(--success); } .sync-dot.pending { background: var(--exercise); animation: pulse 1.5s infinite; } .sync-dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .spinner { width: 20px; height: 20px; border: 2px solid var(--surface3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .profile-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-family: 'DM Serif Display', serif; font-size: 22px; color: #fff; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 20px; }
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+  .hidden { display: none !important; }
+  .text-muted { color: var(--text-muted); } .text-sm { font-size: 13px; } .text-xs { font-size: 11px; }
+  .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; }
+  .flex { display: flex; } .flex-between { display: flex; justify-content: space-between; align-items: center; } .gap-2 { gap: 8px; }
+
+  /* === FOOD === */
+  .search-results { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); max-height: 280px; overflow-y: auto; }
+  .search-result-item { padding: 12px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+  .search-result-item:last-child { border-bottom: none; } .search-result-item:hover { background: var(--surface3); }
+  .search-result-name { font-size: 14px; font-weight: 500; }
+  .search-result-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .food-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .food-item:last-child { border-bottom: none; }
+  .food-item-name { font-size: 14px; font-weight: 500; } .food-item-meta { font-size: 12px; color: var(--text-muted); }
+  .food-item-cal { font-size: 14px; font-weight: 600; color: var(--food); }
+  .macro-bar { height: 8px; background: var(--surface3); border-radius: 4px; overflow: hidden; display: flex; }
+  .macro-p { background: #818cf8; } .macro-c { background: var(--food); } .macro-f { background: var(--exercise); }
+  .saved-meal-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .water-cups { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .water-cup { width: 36px; height: 36px; border-radius: 8px; border: 2px solid var(--accent2); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; transition: background 0.15s; }
+  .water-cup.filled { background: var(--accent2); }
+
+  /* === EXERCISE === */
+  .session-item { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--border); }
+
+  /* === TRENDS === */
+  .range-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .range-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 600; }
+  .range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  canvas { max-width: 100%; }
+
+  /* === AUTH === */
+  #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center; }
+  #auth-screen .logo { font-family: 'DM Serif Display', serif; font-size: 48px; margin-bottom: 8px; }
+  #auth-screen .logo span { color: var(--accent); }
+  #auth-screen .tagline { color: var(--text-muted); margin-bottom: 40px; }
+  .auth-features { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 36px; width: 100%; max-width: 340px; }
+  .auth-feature { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: left; }
+  .auth-feature-icon { font-size: 20px; margin-bottom: 6px; }
+  .auth-feature-label { font-size: 13px; font-weight: 500; }
+
+  /* === PROFILE SELECTOR === */
+  #profile-selector { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 250; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .profile-list { background: var(--surface); border-radius: var(--radius); padding: 24px; width: 100%; max-width: 380px; }
+  .profile-list-title { font-family: 'DM Serif Display', serif; font-size: 22px; margin-bottom: 20px; text-align: center; }
+  .profile-card { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 10px; cursor: pointer; transition: background 0.15s; background: var(--surface2); }
+  .profile-card:hover { background: var(--surface3); }
+  .profile-info { flex: 1; }
+  .profile-name { font-weight: 600; font-size: 15px; }
+  .profile-meta { font-size: 12px; color: var(--text-muted); }
+
+  /* === TOAST === */
+  #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 20px; font-size: 13px; font-weight: 500; z-index: 500; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap; }
+
+  /* =====================================================
+     DESKTOP LAYOUT — 900px+
+     ===================================================== */
+  @media (min-width: 900px) {
+    html, body { overflow: hidden; }
+    #app { height: 100vh; overflow: hidden; }
+    #topbar { padding: 0 32px; height: 60px; }
+    #topbar .brand { font-size: 26px; }
+    #app-body { flex: 1; display: flex; overflow: hidden; }
+
+    /* Sidebar */
+    #navbar {
+      position: static; width: var(--sidebar-w); flex-shrink: 0;
+      flex-direction: column; justify-content: flex-start; align-items: stretch;
+      padding: 20px 10px 20px; border-top: none; border-right: 1px solid var(--border);
+      background: var(--surface); backdrop-filter: none; gap: 3px; overflow-y: auto;
+    }
+    .nav-btn {
+      flex-direction: row; justify-content: flex-start; gap: 12px;
+      padding: 11px 14px; font-size: 14px; border-radius: 10px; width: 100%;
+    }
+    .nav-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+    .nav-btn.active { background: rgba(59,130,246,0.12); color: var(--accent); }
+
+    /* Content area */
+    #content { flex: 1; overflow-y: auto; padding: 32px 40px; padding-bottom: 40px; max-width: none; }
+
+    /* Score ring larger */
+    .score-ring-wrap { width: 180px; height: 180px; }
+    .score-ring-wrap svg { width: 180px; height: 180px; }
+    .score-number { font-size: 52px; }
+    .section-title { font-size: 24px; }
+
+    /* Dashboard 2-col grid */
+    #dash-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+
+    /* Sleep/Exercise/Weight 2-col */
+    .desktop-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+    /* Trends 2-col charts */
+    .trends-chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .trends-score-full { grid-column: 1 / -1; }
+
+    /* Settings 2-col */
+    .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+
+    /* Modals: centered dialog */
+    .modal-overlay { align-items: center; justify-content: center; }
+    .modal { border-radius: 20px; max-width: 540px; max-height: 88vh; transform: scale(0.95); opacity: 0; transition: opacity 0.2s, transform 0.2s; }
+    .modal-overlay.open .modal { transform: scale(1); opacity: 1; }
+    .modal-handle { display: none; }
+
+    /* Toast higher up */
+    #toast { bottom: 30px; }
+
+    /* Date nav max width */
+    .date-nav { max-width: 400px; }
+
+    /* Quick btn grid */
+    #dash-quick-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  }
+
+  /* Tablet */
+  @media (min-width: 500px) and (max-width: 899px) {
+    #content { max-width: 620px; margin: 0 auto; }
+    #navbar { max-width: 620px; left: 50%; transform: translateX(-50%); border-radius: 20px 20px 0 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="logo">Vital<span>Track</span></div>
+  <div class="tagline">Your complete health dashboard</div>
+  <div class="auth-features">
+    <div class="auth-feature"><div class="auth-feature-icon">😴</div><div class="auth-feature-label">Sleep Tracking</div></div>
+    <div class="auth-feature"><div class="auth-feature-icon">🥗</div><div class="auth-feature-label">Nutrition & Food</div></div>
+    <div class="auth-feature"><div class="auth-feature-icon">🏋️</div><div class="auth-feature-label">Exercise Log</div></div>
+    <div class="auth-feature"><div class="auth-feature-icon">⚖️</div><div class="auth-feature-label">Body Metrics</div></div>
+  </div>
+  <button class="btn btn-primary btn-full" id="auth-btn" style="max-width:340px;padding:16px;font-size:16px;" onclick="startMicrosoftAuth()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg>
+    Sign in with Microsoft
+  </button>
+  <p class="text-sm text-muted mt-3">Your data is stored in your OneDrive</p>
+</div>
+
+<!-- PROFILE SELECTOR -->
+<div id="profile-selector" class="hidden">
+  <div class="profile-list">
+    <div class="profile-list-title">Select Profile</div>
+    <div id="profile-list-items"></div>
+    <button class="btn btn-secondary btn-full mt-3" onclick="showAddProfileModal()">+ Add Profile</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" class="hidden">
+  <div id="topbar">
+    <div class="brand">Vital<span>Track</span></div>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <div class="sync-status"><div class="sync-dot synced" id="sync-dot"></div><span id="sync-label">Saved</span></div>
+      <div onclick="showProfileSelector()" style="cursor:pointer;">
+        <div class="profile-avatar" id="topbar-avatar" style="width:34px;height:34px;font-size:15px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-body">
+    <!-- SIDEBAR / NAVBAR -->
+    <nav id="navbar">
+      <button class="nav-btn active" onclick="navTo('dashboard')" id="nav-dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Today</button>
+      <button class="nav-btn" onclick="navTo('sleep')" id="nav-sleep">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>Sleep</button>
+      <button class="nav-btn" onclick="navTo('food')" id="nav-food">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 6v6l4 2"/></svg>Food</button>
+      <button class="nav-btn" onclick="navTo('exercise')" id="nav-exercise">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4v16M18 4v16M6 12h12M3 8h3M18 8h3M3 16h3M18 16h3"/></svg>Exercise</button>
+      <button class="nav-btn" onclick="navTo('weight')" id="nav-weight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a3 3 0 100 6 3 3 0 000-6z"/><path d="M20 21a8 8 0 10-16 0"/></svg>Body</button>
+      <button class="nav-btn" onclick="navTo('trends')" id="nav-trends">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22,12 18,12 15,21 9,3 6,12 2,12"/></svg>Trends</button>
+      <button class="nav-btn" onclick="navTo('settings')" id="nav-settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings</button>
+    </nav>
+
+    <!-- CONTENT -->
+    <div id="content">
+
+      <!-- DASHBOARD -->
+      <div id="page-dashboard" class="page">
+        <div class="date-nav">
+          <button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button>
+          <div class="date-display" id="dash-date" onclick="openDatePicker()"></div>
+          <button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button>
+        </div>
+        <div id="dash-grid">
+          <!-- Left col: score + quick btns -->
+          <div>
+            <div class="card">
+              <div class="score-display">
+                <div class="score-ring-wrap">
+                  <svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="68" fill="none" stroke="var(--surface3)" stroke-width="10"/><circle id="score-arc" cx="80" cy="80" r="68" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="427" style="transition:stroke-dashoffset 1s ease;"/></svg>
+                  <div class="score-ring-center"><div class="score-number" id="dash-score">--</div><div class="score-label">Daily Score</div></div>
+                </div>
+              </div>
+              <div class="cat-scores" id="cat-scores"></div>
+            </div>
+            <div id="dash-quick-btns" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(129,140,248,0.15);color:var(--sleep);border:1px solid rgba(129,140,248,0.2);" onclick="navTo('sleep')">😴 Sleep</button>
+              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(52,211,153,0.15);color:var(--food);border:1px solid rgba(52,211,153,0.2);" onclick="navTo('food')">🥗 Food</button>
+              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(245,158,11,0.15);color:var(--exercise);border:1px solid rgba(245,158,11,0.2);" onclick="navTo('exercise')">🏋️ Exercise</button>
+              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(244,114,182,0.15);color:var(--weight);border:1px solid rgba(244,114,182,0.2);" onclick="navTo('weight')">⚖️ Body</button>
+            </div>
+          </div>
+          <!-- Right col: summary -->
+          <div>
+            <div class="card" id="dash-summary"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SLEEP -->
+      <div id="page-sleep" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(129,140,248,0.15);">😴</div><div class="section-title">Sleep</div></div>
+        <div class="date-nav"><button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button><div class="date-display" id="sleep-date"></div><button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button></div>
+        <div class="desktop-two-col">
+          <div>
+            <div class="card">
+              <div class="flex-between" style="margin-bottom:14px;">
+                <div class="card-subtitle" style="margin-bottom:0;">Sleep Metrics</div>
+                <button class="btn btn-sm btn-secondary" onclick="openScreenshotImport('sleep')" style="gap:6px;">📷 Import Screenshot</button>
+              </div>
+              <!-- Total Sleep -->
+              <div class="form-group">
+                <label class="form-label">Total Sleep</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" class="form-input" id="s-total-h" placeholder="7" min="0" max="23" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">hrs</span>
+                  <input type="number" class="form-input" id="s-total-m" placeholder="50" min="0" max="59" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+                </div>
+              </div>
+              <!-- Awake -->
+              <div class="form-group">
+                <label class="form-label">Awake Time</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" class="form-input" id="s-awake-h" placeholder="0" min="0" max="23" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">hrs</span>
+                  <input type="number" class="form-input" id="s-awake-m" placeholder="17" min="0" max="59" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+                </div>
+              </div>
+              <!-- Deep Sleep -->
+              <div class="form-group">
+                <label class="form-label">Deep Sleep</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" class="form-input" id="s-deep-h" placeholder="2" min="0" max="12" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">hrs</span>
+                  <input type="number" class="form-input" id="s-deep-m" placeholder="6" min="0" max="59" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+                </div>
+              </div>
+              <!-- Light Sleep -->
+              <div class="form-group">
+                <label class="form-label">Light Sleep</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" class="form-input" id="s-light-h" placeholder="3" min="0" max="12" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">hrs</span>
+                  <input type="number" class="form-input" id="s-light-m" placeholder="49" min="0" max="59" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+                </div>
+              </div>
+              <!-- REM Sleep -->
+              <div class="form-group">
+                <label class="form-label">REM Sleep</label>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" class="form-input" id="s-rem-h" placeholder="1" min="0" max="12" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">hrs</span>
+                  <input type="number" class="form-input" id="s-rem-m" placeholder="55" min="0" max="59" style="flex:1;"> <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Wake Ups</label><input type="number" class="form-input" id="s-wakeups" placeholder="0" min="0"></div>
+                <div class="form-group"><label class="form-label">Fell Asleep</label><input type="time" class="form-input" id="s-fellasleep"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="s-hr" placeholder="66" min="30"></div>
+                <div class="form-group"><label class="form-label">Breath Rate (rpm)</label><input type="number" class="form-input" id="s-breath" placeholder="19" step="0.1"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Sleep Efficiency %</label><input type="number" class="form-input" id="s-efficiency" placeholder="96" min="0" max="100"></div>
+              <button class="btn btn-primary btn-full" onclick="saveSleep()">Save Sleep Data</button>
+            </div>
+          </div>
+          <div>
+            <!-- Dual score display -->
+            <div class="card">
+              <div class="card-subtitle">Sleep Quality Score (from app)</div>
+              <div class="form-group" style="margin-bottom:0;">
+                <input type="number" class="form-input" id="sleep-quality-input" placeholder="e.g. 82" min="0" max="100" oninput="saveSleepQualityScore(this.value)" style="font-size:28px;text-align:center;font-family:'DM Serif Display',serif;">
+              </div>
+              <div class="text-xs text-muted mt-2" style="text-align:center;">Enter or import from your sleep app</div>
+            </div>
+            <div class="card" style="text-align:center;">
+              <div class="card-subtitle">VitalTrack Sleep Score</div>
+              <div class="score-number" id="sleep-score-display" style="font-size:64px;">--</div>
+              <div id="sleep-score-breakdown" class="text-sm text-muted mt-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOD -->
+      <div id="page-food" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(52,211,153,0.15);">🥗</div><div class="section-title">Nutrition</div></div>
+        <div class="date-nav"><button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button><div class="date-display" id="food-date"></div><button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button></div>
+        <div class="desktop-two-col">
+          <div>
+            <div class="card">
+              <div class="flex-between"><div class="card-subtitle" style="margin-bottom:0;">💧 Water Intake</div><div class="text-sm" id="water-count" style="color:var(--accent2);font-weight:600;"></div></div>
+              <div class="water-cups" id="water-cups"></div>
+              <div class="text-xs text-muted mt-2">Tap glasses to log</div>
+            </div>
+            <div class="card">
+              <div class="card-subtitle">Search Food (USDA Database)</div>
+              <div class="form-group"><input type="text" class="form-input" id="food-search-input" placeholder="Search foods..." oninput="debounceSearch(this.value)"></div>
+              <div id="food-search-results" class="hidden"></div>
+              <div class="divider"></div>
+              <div class="flex-between" style="margin-bottom:10px;"><div class="card-subtitle" style="margin-bottom:0;">Saved Meals</div><button class="btn btn-sm btn-secondary" onclick="showSavedMeals()">View All</button></div>
+              <div id="saved-meals-quick"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="flex-between" style="margin-bottom:12px;"><div class="card-subtitle" style="margin-bottom:0;">Today's Log</div><div style="color:var(--food);font-weight:700;font-size:16px;" id="total-cals">0 kcal</div></div>
+              <div id="macro-summary" style="margin-bottom:12px;"></div>
+              <div id="food-log-list"></div>
+              <div id="food-goal-progress" class="mt-2"></div>
+            </div>
+            <div class="card" style="text-align:center;"><div class="card-subtitle">Nutrition Score</div><div class="score-number" id="food-score-display" style="font-size:64px;">--</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXERCISE -->
+      <div id="page-exercise" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(245,158,11,0.15);">🏋️</div><div class="section-title">Exercise</div></div>
+        <div class="date-nav"><button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button><div class="date-display" id="exercise-date"></div><button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button></div>
+        <div class="desktop-two-col">
+          <div>
+            <div class="card">
+              <div class="flex-between" style="margin-bottom:14px;">
+                <div class="card-subtitle" style="margin-bottom:0;">Daily Activity</div>
+                <button class="btn btn-sm btn-secondary" onclick="openScreenshotImport('exercise')" style="gap:6px;">📷 Import Screenshot</button>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Steps</label><input type="number" class="form-input" id="e-steps" placeholder="5657" min="0"></div>
+                <div class="form-group"><label class="form-label">Stand Hours</label><input type="number" class="form-input" id="e-stand" placeholder="8" min="0" max="24"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="e-active-cal" placeholder="414" min="0"></div>
+                <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="e-total-cal" placeholder="1783" min="0"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="e-distance" placeholder="2.38" step="0.01" min="0"></div>
+                <div class="form-group"><label class="form-label">Flights Climbed</label><input type="number" class="form-input" id="e-flights" placeholder="0" min="0"></div>
+              </div>
+              <button class="btn btn-primary btn-full" onclick="saveExerciseDaily()">Save Daily Activity</button>
+            </div>
+            <div class="card">
+              <div class="flex-between" style="margin-bottom:14px;"><div class="card-subtitle" style="margin-bottom:0;">Exercise Sessions</div><button class="btn btn-sm btn-secondary" onclick="showAddSessionModal()">+ Add</button></div>
+              <div id="session-list"></div>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="text-align:center;"><div class="card-subtitle">Exercise Score</div><div class="score-number" id="exercise-score-display" style="font-size:64px;">--</div></div>
+            <div class="card" id="exercise-stats-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BODY/WEIGHT -->
+      <div id="page-weight" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(244,114,182,0.15);">⚖️</div><div class="section-title">Body Metrics</div></div>
+        <div class="date-nav"><button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button><div class="date-display" id="weight-date"></div><button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button></div>
+        <div class="desktop-two-col">
+          <div>
+            <div class="card">
+              <div class="flex-between" style="margin-bottom:14px;">
+                <div class="card-subtitle" style="margin-bottom:0;">Body Measurements</div>
+                <button class="btn btn-sm btn-secondary" onclick="openScreenshotImport('weight')" style="gap:6px;">📷 Import Screenshot</button>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Weight (lbs)</label><input type="number" class="form-input" id="w-weight" placeholder="206.6" step="0.1"></div>
+                <div class="form-group"><label class="form-label">Body Fat %</label><input type="number" class="form-input" id="w-bf" placeholder="44.4" step="0.1"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Visceral Fat</label><input type="number" class="form-input" id="w-vf" placeholder="18" step="1"></div>
+                <div class="form-group"><label class="form-label">Muscle Mass (lbs)</label><input type="number" class="form-input" id="w-mm" placeholder="108" step="0.1"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Skeletal Muscle %</label><input type="number" class="form-input" id="w-sm" placeholder="32.5" step="0.1"></div>
+                <div class="form-group"><label class="form-label">Subcutaneous Fat %</label><input type="number" class="form-input" id="w-subf" placeholder="38.3" step="0.1"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Body Water %</label><input type="number" class="form-input" id="w-water" placeholder="38.2" step="0.1"></div>
+                <div class="form-group"><label class="form-label">Bone Mass (lbs)</label><input type="number" class="form-input" id="w-bone" placeholder="7" step="0.1"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Protein %</label><input type="number" class="form-input" id="w-protein" placeholder="11.8" step="0.1"></div>
+                <div class="form-group"><label class="form-label">BMR (kcal)</label><input type="number" class="form-input" id="w-bmr" placeholder="1495" step="1"></div>
+              </div>
+              <div class="form-group"><label class="form-label">Metabolic Age</label><input type="number" class="form-input" id="w-metage" placeholder="37" step="1"></div>
+              <button class="btn btn-primary btn-full" onclick="saveWeight()">Save Body Metrics</button>
+            </div>
+          </div>
+          <div>
+            <div class="card" style="text-align:center;"><div class="card-subtitle">Body Score</div><div class="score-number" id="weight-score-display" style="font-size:64px;">--</div></div>
+            <div class="card" id="bmi-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRENDS -->
+      <div id="page-trends" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(59,130,246,0.15);">📈</div><div class="section-title">Trends</div></div>
+        <div class="range-btns">
+          <button class="range-btn active" onclick="setRange('7d',this)">7D</button>
+          <button class="range-btn" onclick="setRange('30d',this)">30D</button>
+          <button class="range-btn" onclick="setRange('3m',this)">3M</button>
+          <button class="range-btn" onclick="setRange('1y',this)">1Y</button>
+          <button class="range-btn" onclick="setRange('custom',this)">Custom</button>
+        </div>
+        <div id="custom-range-inputs" class="hidden card" style="margin-bottom:16px;">
+          <div class="form-row"><div class="form-group"><label class="form-label">From</label><input type="date" class="form-input" id="range-from"></div><div class="form-group"><label class="form-label">To</label><input type="date" class="form-input" id="range-to"></div></div>
+          <button class="btn btn-primary btn-sm" onclick="applyCustomRange()">Apply</button>
+        </div>
+        <div class="trends-chart-grid">
+          <div class="card trends-score-full"><div class="card-subtitle">Daily Health Score</div><canvas id="score-chart" height="180"></canvas></div>
+          <div class="card"><div class="card-subtitle">Sleep (hours)</div><canvas id="sleep-chart" height="160"></canvas></div>
+          <div class="card"><div class="card-subtitle">Weight (lbs)</div><canvas id="weight-chart" height="160"></canvas></div>
+          <div class="card"><div class="card-subtitle">Daily Steps</div><canvas id="steps-chart" height="160"></canvas></div>
+          <div class="card"><div class="card-subtitle">Calories</div><canvas id="cal-chart" height="160"></canvas></div>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div id="page-settings" class="page hidden">
+        <div class="section-header"><div class="section-icon" style="background:rgba(255,255,255,0.05);">⚙️</div><div class="section-title">Settings</div></div>
+        <div class="settings-grid">
+          <div>
+            <div class="card"><div class="card-title">Profile</div>
+              <div class="form-row"><div class="form-group"><label class="form-label">First Name</label><input type="text" class="form-input" id="set-name" placeholder="John"></div><div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="set-birthday"></div></div>
+              <div class="form-row"><div class="form-group"><label class="form-label">Height (in)</label><input type="number" class="form-input" id="set-height" placeholder="70" step="0.5"></div><div class="form-group"><label class="form-label">Sex</label><select class="form-input" id="set-sex"><option value="male">Male</option><option value="female">Female</option></select></div></div>
+              <div id="profile-age-display" class="text-sm text-muted" style="margin-bottom:12px;"></div>
+              <button class="btn btn-primary btn-full" onclick="saveProfileSettings()">Save Profile</button>
+            </div>
+            <div class="card"><div class="card-title">Daily Goals</div>
+              <div class="form-row"><div class="form-group"><label class="form-label">Calorie Goal</label><input type="number" class="form-input" id="set-cal-goal" placeholder="2000"></div><div class="form-group"><label class="form-label">Step Goal</label><input type="number" class="form-input" id="set-step-goal" placeholder="10000"></div></div>
+              <div class="form-row"><div class="form-group"><label class="form-label">Sleep Goal (hrs)</label><input type="number" class="form-input" id="set-sleep-goal" placeholder="8" step="0.5"></div><div class="form-group"><label class="form-label">Water Goal (glasses)</label><input type="number" class="form-input" id="set-water-goal" placeholder="8"></div></div>
+              <div class="form-group"><label class="form-label">Target Weight (lbs)</label><input type="number" class="form-input" id="set-target-weight" placeholder="170" step="0.5"></div>
+              <button class="btn btn-primary btn-full" onclick="saveGoalSettings()">Save Goals</button>
+            </div>
+            <div class="card"><div class="card-title">Score Weights</div>
+              <div class="text-sm text-muted" style="margin-bottom:14px;">Total must equal 100%</div>
+              <div id="weight-sliders"></div>
+              <div id="weight-total" class="text-sm" style="margin-top:10px;font-weight:600;"></div>
+              <button class="btn btn-primary btn-full mt-3" onclick="saveWeights()">Save Weights</button>
+            </div>
+          </div>
+          <div>
+            <div class="card"><div class="card-title">☁️ OneDrive Storage</div><div id="onedrive-status-card"></div></div>
+            <div class="card"><div class="card-title">🔔 Reminders</div>
+              <div class="text-sm text-muted" style="margin-bottom:14px;">Get daily prompts to log your data.</div>
+              <div id="notif-permission-row" style="margin-bottom:14px;"></div>
+              <div id="reminder-toggles"></div>
+              <button class="btn btn-primary btn-full mt-3" onclick="saveReminderSettings()">Save Reminders</button>
+            </div>
+            <div class="card"><div class="card-title">📤 Export Data</div>
+              <div class="text-sm text-muted" style="margin-bottom:14px;">Download your health data as CSV or JSON.</div>
+              <div class="form-row" style="margin-bottom:12px;"><div class="form-group"><label class="form-label">From</label><input type="date" class="form-input" id="export-from"></div><div class="form-group"><label class="form-label">To</label><input type="date" class="form-input" id="export-to"></div></div>
+              <div class="form-group"><label class="form-label">Categories</label>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="exp-sleep" checked> 😴 Sleep</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="exp-food" checked> 🥗 Food</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="exp-exercise" checked> 🏋️ Exercise</label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="exp-weight" checked> ⚖️ Body</label>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn btn-primary" style="flex:1" onclick="exportCSV()">⬇️ CSV</button>
+                <button class="btn btn-secondary" style="flex:1" onclick="exportJSON()">⬇️ JSON</button>
+              </div>
+            </div>
+            <div class="card"><div class="card-title">Profiles</div>
+              <div id="all-profiles-list"></div>
+              <button class="btn btn-secondary btn-full mt-3" onclick="showAddProfileModal()">+ Add Profile</button>
+            </div>
+            <div class="card"><button class="btn btn-danger btn-full" onclick="signOut()">Sign Out</button></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- MODALS -->
+<div class="modal-overlay" id="add-session-modal">
+  <div class="modal"><div class="modal-handle"></div><div class="modal-title" id="session-modal-title">Add Exercise Session</div>
+    <div class="form-group"><label class="form-label">Workout Type</label><input type="text" class="form-input" id="sess-type" placeholder="Elliptical, Running, Lifting..."></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Duration (min)</label><input type="number" class="form-input" id="sess-mins" placeholder="45" min="1"></div>
+      <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46" min="0"></div>
+      <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="sess-total-cal" placeholder="55" min="0"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Workouts / Sets Done</label><input type="text" class="form-input" id="sess-workouts" placeholder="e.g. Bench 3x8, Squat 4x6"></div>
+    <input type="hidden" id="sess-edit-index" value="">
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-session-modal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" id="sess-save-btn" onclick="saveSession()">Add Session</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="add-food-modal">
+  <div class="modal"><div class="modal-handle"></div><div class="modal-title" id="add-food-modal-title">Add Food</div><div id="add-food-modal-content"></div></div>
+</div>
+<div class="modal-overlay" id="saved-meals-modal">
+  <div class="modal"><div class="modal-handle"></div><div class="modal-title">Saved Meals</div><div id="saved-meals-list"></div><div class="text-sm text-muted mt-3" style="text-align:center;">Save meals while logging food to access them here</div></div>
+</div>
+<div class="modal-overlay" id="add-profile-modal">
+  <div class="modal"><div class="modal-handle"></div><div class="modal-title">Add Profile</div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="new-profile-name" placeholder="Jane"></div><div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="new-profile-birthday"></div></div>
+    <div class="form-row"><div class="form-group"><label class="form-label">Height (in)</label><input type="number" class="form-input" id="new-profile-height" placeholder="65"></div><div class="form-group"><label class="form-label">Sex</label><select class="form-input" id="new-profile-sex"><option value="male">Male</option><option value="female">Female</option></select></div></div>
+    <div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-profile-modal')">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="createProfile()">Create Profile</button></div>
+  </div>
+</div>
+
+<!-- SCREENSHOT IMPORT MODAL -->
+<div class="modal-overlay" id="screenshot-import-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="screenshot-modal-title">📷 Import from Screenshot</div>
+    <div class="text-sm text-muted" style="margin-bottom:16px;" id="screenshot-modal-hint">Upload a screenshot from your health app and Claude will read all the numbers and fill in the form automatically.</div>
+    <div id="screenshot-drop-zone" style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px;transition:border-color 0.2s;" onclick="document.getElementById('screenshot-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleScreenshotDrop(event)">
+      <div style="font-size:36px;margin-bottom:8px;">📱</div>
+      <div style="font-weight:600;margin-bottom:4px;">Tap to choose screenshot</div>
+      <div class="text-sm text-muted">or drag & drop — JPG, PNG supported</div>
+    </div>
+    <input type="file" id="screenshot-file-input" accept="image/*" style="display:none" onchange="handleScreenshotFile(this.files[0])">
+    <div id="screenshot-preview" style="display:none;margin-bottom:16px;">
+      <img id="screenshot-img" style="width:100%;max-height:220px;object-fit:contain;border-radius:8px;border:1px solid var(--border);">
+    </div>
+    <div id="screenshot-status" style="display:none;" class="card-sm" style="margin-bottom:12px;"></div>
+    <div id="screenshot-result" style="display:none;"></div>
+    <div style="display:flex;gap:10px;margin-top:4px;">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('screenshot-import-modal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1;display:none;" id="screenshot-apply-btn" onclick="applyScreenshotData()">✓ Apply to Form</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  isAuthenticated: false,
+  currentProfile: null,
+  currentDate: new Date().toISOString().split('T')[0],
+  profiles: [],
+  data: {},
+  settings: {},
+  savedMeals: {},
+  scoreWeights: { sleep: 30, food: 25, exercise: 25, weight: 20 }
+};
+
+let searchTimeout = null;
+let pendingFoodItem = null;
+let currentRange = '7d';
+
+// ============================================================
+// MSAL CONFIG — Real Microsoft OneDrive via Microsoft Graph
+// To use with your own Azure App Registration:
+//   1. Go to portal.azure.com → Azure Active Directory → App Registrations
+//   2. New registration: any name, Accounts in any org + personal, 
+//      Redirect URI = SPA, set to the URL where this file is hosted
+//   3. Copy the Application (client) ID below
+//   4. Under API Permissions add: Files.ReadWrite, User.Read
+// ============================================================
+const MSAL_CONFIG = {
+  auth: {
+    clientId: 'YOUR_CLIENT_ID_HERE', // <-- Replace with your Azure App Client ID
+    authority: 'https://login.microsoftonline.com/common',
+    redirectUri: window.location.origin + window.location.pathname
+  },
+  cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true }
+};
+
+const GRAPH_SCOPES = ['Files.ReadWrite', 'User.Read'];
+const ONEDRIVE_FOLDER = 'VitalTrack';
+const ONEDRIVE_FILE   = 'vitaltrack_data.json';
+
+let msalInstance = null;
+let msalAccount   = null;
+let oneDriveEnabled = false;
+
+function initMSAL() {
+  try {
+    if (typeof msal === 'undefined') { console.warn('MSAL not loaded'); return; }
+    msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
+    // Handle redirect after login
+    msalInstance.handleRedirectPromise().then(resp => {
+      if (resp) finishLogin(resp.account);
+    }).catch(e => console.error('MSAL redirect error', e));
+  } catch(e) { console.error('MSAL init error', e); }
+}
+
+async function getGraphToken() {
+  if (!msalInstance || !msalAccount) return null;
+  try {
+    const resp = await msalInstance.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: msalAccount });
+    return resp.accessToken;
+  } catch(e) {
+    try {
+      const resp = await msalInstance.acquireTokenPopup({ scopes: GRAPH_SCOPES });
+      msalAccount = resp.account;
+      return resp.accessToken;
+    } catch(e2) { console.error('Token error', e2); return null; }
+  }
+}
+
+// ---- OneDrive read / write ----
+async function saveToOneDrive() {
+  const token = await getGraphToken();
+  if (!token) return false;
+  setSyncStatus('pending');
+  try {
+    const payload = JSON.stringify({
+      profiles: state.profiles, data: state.data,
+      settings: state.settings, savedMeals: state.savedMeals,
+      scoreWeights: state.scoreWeights
+    }, null, 2);
+    // Ensure folder exists, then upload file
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_FOLDER}/${ONEDRIVE_FILE}:/content`;
+    const resp = await fetch(url, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: payload
+    });
+    if (resp.ok) { setSyncStatus('synced'); return true; }
+    else { setSyncStatus('error'); return false; }
+  } catch(e) { setSyncStatus('error'); return false; }
+}
+
+async function loadFromOneDrive() {
+  const token = await getGraphToken();
+  if (!token) return false;
+  try {
+    const url = `https://graph.microsoft.com/v1.0/me/drive/root:/${ONEDRIVE_FOLDER}/${ONEDRIVE_FILE}:/content`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (resp.status === 404) return true; // No file yet — fresh start
+    if (!resp.ok) return false;
+    const saved = await resp.json();
+    state.profiles     = saved.profiles     || [];
+    state.data         = saved.data         || {};
+    state.settings     = saved.settings     || {};
+    state.savedMeals   = saved.savedMeals   || {};
+    state.scoreWeights = saved.scoreWeights || { sleep:30, food:25, exercise:25, weight:20 };
+    return true;
+  } catch(e) { console.error('OneDrive load error', e); return false; }
+}
+
+// ---- Fallback local storage ----
+function saveToLocalStorage() {
+  try {
+    localStorage.setItem('vitaltrack_state', JSON.stringify({
+      profiles: state.profiles, data: state.data,
+      settings: state.settings, savedMeals: state.savedMeals,
+      scoreWeights: state.scoreWeights
+    }));
+  } catch(e) {}
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem('vitaltrack_state');
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    state.profiles     = saved.profiles     || [];
+    state.data         = saved.data         || {};
+    state.settings     = saved.settings     || {};
+    state.savedMeals   = saved.savedMeals   || {};
+    state.scoreWeights = saved.scoreWeights || { sleep:30, food:25, exercise:25, weight:20 };
+  } catch(e) {}
+}
+
+// Master save — writes to OneDrive if available, always writes local too
+let saveTimer = null;
+async function saveToStorage() {
+  setSyncStatus('pending');
+  saveToLocalStorage();
+  if (oneDriveEnabled) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => { await saveToOneDrive(); }, 1200);
+  } else {
+    setSyncStatus('synced');
+  }
+}
+
+function loadFromStorage() { loadFromLocalStorage(); }
+
+function setSyncStatus(s) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot) return;
+  dot.className = 'sync-dot ' + s;
+  lbl.textContent = s === 'synced' ? (oneDriveEnabled ? '☁️ Synced' : 'Saved') :
+                    s === 'pending' ? 'Saving...' : '⚠️ Sync Error';
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function startMicrosoftAuth() {
+  const btn = document.querySelector('#auth-screen .btn-primary');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;"></div> Connecting...';
+
+  // Check if real MSAL is configured
+  if (msalInstance && MSAL_CONFIG.auth.clientId !== 'YOUR_CLIENT_ID_HERE') {
+    try {
+      let accounts = msalInstance.getAllAccounts();
+      if (accounts.length > 0) {
+        await finishLogin(accounts[0]);
+      } else {
+        await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
+        accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) await finishLogin(accounts[0]);
+      }
+      return;
+    } catch(e) {
+      console.error('MSAL login error', e);
+      showToast('Microsoft login failed — using local storage');
+    }
+  }
+
+  // Demo / fallback mode
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg> Sign in with Microsoft';
+    finishLoginLocal();
+  }, 800);
+}
+
+function finishLoginLocal() {
+  state.isAuthenticated = true;
+  oneDriveEnabled = false;
+  loadFromStorage();
+  afterLogin();
+}
+
+async function finishLogin(account) {
+  msalAccount = account;
+  oneDriveEnabled = true;
+  state.isAuthenticated = true;
+
+  // Try to load from OneDrive first, fall back to local
+  setSyncStatus('pending');
+  const loaded = await loadFromOneDrive();
+  if (!loaded) loadFromLocalStorage();
+  setSyncStatus('synced');
+  afterLogin();
+}
+
+function afterLogin() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  if (state.profiles.length === 0) {
+    showAddProfileModal(true);
+  } else {
+    showProfileSelector();
+  }
+}
+
+function signOut() {
+  if (msalInstance && msalAccount) {
+    msalInstance.logoutPopup({ account: msalAccount }).catch(() => {});
+    msalAccount = null;
+  }
+  oneDriveEnabled = false;
+  state.isAuthenticated = false;
+  state.currentProfile = null;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+  const btn = document.querySelector('#auth-screen .btn-primary');
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.4 24H0V12.6h11.4V24zM24 24H12.6V12.6H24V24zM11.4 11.4H0V0h11.4v11.4zM24 11.4H12.6V0H24v11.4z"/></svg> Sign in with Microsoft';
+}
+
+// ============================================================
+// NOTIFICATIONS / REMINDERS
+// ============================================================
+const DEFAULT_REMINDERS = [
+  { id: 'sleep',    label: '😴 Log Sleep',    time: '08:00', enabled: false },
+  { id: 'food',     label: '🥗 Log Meals',    time: '19:00', enabled: false },
+  { id: 'exercise', label: '🏋️ Log Exercise', time: '18:00', enabled: false },
+  { id: 'weight',   label: '⚖️ Log Weight',   time: '07:30', enabled: false },
+  { id: 'water',    label: '💧 Drink Water',  time: '12:00', enabled: false }
+];
+
+function getReminders() {
+  return JSON.parse(localStorage.getItem('vitaltrack_reminders') || 'null') || DEFAULT_REMINDERS.map(r => ({...r}));
+}
+
+function saveReminders(reminders) {
+  localStorage.setItem('vitaltrack_reminders', JSON.stringify(reminders));
+}
+
+async function requestNotifPermission() {
+  if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; }
+  const perm = await Notification.requestPermission();
+  renderNotifPermissionRow();
+  if (perm === 'granted') {
+    showToast('Notifications enabled ✓');
+    scheduleAllReminders();
+  } else {
+    showToast('Notification permission denied');
+  }
+}
+
+function renderNotifPermissionRow() {
+  const el = document.getElementById('notif-permission-row');
+  if (!el) return;
+  if (!('Notification' in window)) {
+    el.innerHTML = '<div class="text-sm" style="color:var(--danger)">Notifications not supported in this browser.</div>';
+    return;
+  }
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    el.innerHTML = '<div class="text-sm" style="color:var(--success)">✓ Notifications are enabled</div>';
+  } else if (perm === 'denied') {
+    el.innerHTML = '<div class="text-sm" style="color:var(--danger)">⚠️ Notifications are blocked. Enable them in your browser settings.</div>';
+  } else {
+    el.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="requestNotifPermission()">🔔 Enable Notifications</button>';
+  }
+}
+
+function renderReminderToggles() {
+  const el = document.getElementById('reminder-toggles');
+  if (!el) return;
+  const reminders = getReminders();
+  el.innerHTML = reminders.map((r, i) => `
+    <div class="toggle-wrap">
+      <div>
+        <div class="toggle-label">${r.label}</div>
+        <input type="time" value="${r.time}" id="rem-time-${r.id}"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;margin-top:4px;">
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="rem-toggle-${r.id}" ${r.enabled ? 'checked' : ''}>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>`).join('');
+}
+
+function saveReminderSettings() {
+  const reminders = getReminders().map(r => ({
+    ...r,
+    enabled: document.getElementById('rem-toggle-' + r.id)?.checked || false,
+    time: document.getElementById('rem-time-' + r.id)?.value || r.time
+  }));
+  saveReminders(reminders);
+  if (Notification.permission === 'granted') scheduleAllReminders();
+  showToast('Reminders saved ✓');
+}
+
+// Use a ServiceWorker-less approach: store scheduled times, check on page load/visibility
+function scheduleAllReminders() {
+  const reminders = getReminders().filter(r => r.enabled);
+  localStorage.setItem('vitaltrack_active_reminders', JSON.stringify(reminders));
+}
+
+function checkReminders() {
+  if (Notification.permission !== 'granted') return;
+  const reminders = JSON.parse(localStorage.getItem('vitaltrack_active_reminders') || '[]');
+  if (!reminders.length) return;
+  const now = new Date();
+  const hhmm = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const lastCheck = localStorage.getItem('vitaltrack_last_notif_check') || '';
+  if (lastCheck === hhmm) return; // already checked this minute
+  localStorage.setItem('vitaltrack_last_notif_check', hhmm);
+
+  reminders.forEach(r => {
+    if (r.time === hhmm) {
+      try {
+        new Notification('VitalTrack Reminder', {
+          body: r.label.replace(/^[^\s]+ /, '') + ' — tap to open VitalTrack',
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="%233b82f6"/><text y=".9em" font-size="80" x="10">💪</text></svg>',
+          tag: 'vitaltrack-' + r.id
+        });
+      } catch(e) {}
+    }
+  });
+}
+
+// ============================================================
+// CSV / JSON EXPORT
+// ============================================================
+function getExportDateRange() {
+  const from = document.getElementById('export-from')?.value;
+  const to   = document.getElementById('export-to')?.value;
+  const pid  = state.currentProfile;
+  const allDates = Object.keys(state.data[pid] || {}).sort();
+  if (!allDates.length) return [];
+  const start = from || allDates[0];
+  const end   = to   || allDates[allDates.length - 1];
+  const result = [];
+  const cur = new Date(start + 'T00:00:00');
+  const fin = new Date(end + 'T00:00:00');
+  while (cur <= fin) {
+    result.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return result;
+}
+
+function exportCSV() {
+  const pid = state.currentProfile;
+  const profile = getProfile();
+  const dates = getExportDateRange();
+  const incSleep    = document.getElementById('exp-sleep')?.checked;
+  const incFood     = document.getElementById('exp-food')?.checked;
+  const incExercise = document.getElementById('exp-exercise')?.checked;
+  const incWeight   = document.getElementById('exp-weight')?.checked;
+
+  // Build header row dynamically
+  const headers = ['Date', 'Daily Score'];
+  if (incSleep)    headers.push('Sleep Total(h)', 'Sleep Deep(h)', 'Sleep REM(h)', 'Sleep Light(h)', 'Sleep Awake(h)', 'Sleep Wake-Ups', 'Sleep HR', 'Sleep Breath Rate', 'Sleep Score');
+  if (incFood)     headers.push('Calories', 'Protein(g)', 'Carbs(g)', 'Fat(g)', 'Fiber(g)', 'Water(glasses)', 'Food Score');
+  if (incExercise) headers.push('Steps', 'Stand Hours', 'Exercise Sessions', 'Exercise Mins', 'Exercise Score');
+  if (incWeight)   headers.push('Weight(lbs)', 'Body Fat%', 'Visceral Fat', 'Muscle Mass(lbs)', 'Skeletal Muscle%', 'BMI', 'Body Score');
+
+  const rows = [headers];
+
+  dates.forEach(date => {
+    const dayData = (state.data[pid] || {})[date] || {};
+    const { total, scores } = calcDailyScoreForDate(date);
+    const row = [date, total !== null ? total : ''];
+
+    if (incSleep) {
+      const s = dayData.sleep || {};
+      row.push(s.total||'', s.deep||'', s.rem||'', s.light||'', s.awake||'', s.wakeups||'', s.hr||'', s.breath||'', scores.sleep !== null ? scores.sleep : '');
+    }
+    if (incFood) {
+      const f = dayData.food || {};
+      const items = f.items || [];
+      const cals  = items.reduce((a,i) => a+(i.calories||0), 0);
+      const prot  = items.reduce((a,i) => a+(i.protein||0), 0);
+      const carbs = items.reduce((a,i) => a+(i.carbs||0), 0);
+      const fat   = items.reduce((a,i) => a+(i.fat||0), 0);
+      const fiber = items.reduce((a,i) => a+(i.fiber||0), 0);
+      row.push(
+        items.length ? Math.round(cals) : '', items.length ? Math.round(prot) : '',
+        items.length ? Math.round(carbs) : '', items.length ? Math.round(fat) : '',
+        items.length ? Math.round(fiber) : '', f.water||'',
+        scores.food !== null ? scores.food : ''
+      );
+    }
+    if (incExercise) {
+      const e = dayData.exercise || {};
+      const sessions = e.sessions || [];
+      const totalMins = sessions.reduce((a,s) => a+(s.mins||0), 0);
+      row.push(e.steps||'', e.standHours||'', sessions.length||'', totalMins||'', scores.exercise !== null ? scores.exercise : '');
+    }
+    if (incWeight) {
+      const w = dayData.weight || {};
+      let bmi = '';
+      if (w.weight && profile?.height) bmi = ((w.weight / (profile.height * profile.height)) * 703).toFixed(1);
+      row.push(w.weight||'', w.bf||'', w.vf||'', w.mm||'', w.sm||'', bmi, scores.weight !== null ? scores.weight : '');
+    }
+    rows.push(row);
+  });
+
+  const csv = rows.map(r => r.map(v => {
+    const s = String(v);
+    return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g,'""')}"` : s;
+  }).join(',')).join('\r\n');
+
+  const name = profile?.name || 'Profile';
+  downloadBlob(csv, `VitalTrack_${name}_${dates[0]}_to_${dates[dates.length-1]}.csv`, 'text/csv;charset=utf-8;');
+  showToast('CSV downloaded ✓');
+}
+
+function exportJSON() {
+  const pid = state.currentProfile;
+  const profile = getProfile();
+  const dates = getExportDateRange();
+  const subset = {};
+  dates.forEach(d => { if (state.data[pid]?.[d]) subset[d] = state.data[pid][d]; });
+  const payload = { profile, data: subset, settings: getSettings(), exportedAt: new Date().toISOString() };
+  downloadBlob(JSON.stringify(payload, null, 2), `VitalTrack_${profile?.name||'data'}_export.json`, 'application/json');
+  showToast('JSON downloaded ✓');
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename; a.style.display = 'none';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+}
+
+// Scoring helper that doesn't mutate state.currentDate
+function calcDailyScoreForDate(date) {
+  const pid = state.currentProfile;
+  const dayData = (state.data[pid] || {})[date] || {};
+  const profile = getProfile();
+  const weights = state.scoreWeights;
+  const scores = {
+    sleep:    scoreSleep(dayData.sleep),
+    food:     scoreFood(dayData.food),
+    exercise: scoreExercise(dayData.exercise),
+    weight:   scoreWeight(dayData.weight, profile)
+  };
+  let totalWeight = 0, weightedSum = 0;
+  for (const [k, v] of Object.entries(scores)) {
+    if (v !== null) { totalWeight += weights[k]; weightedSum += v * weights[k]; }
+  }
+  return { total: totalWeight > 0 ? Math.round(weightedSum / totalWeight) : null, scores };
+}
+
+
+
+// ============================================================
+// PROFILES
+// ============================================================
+function showProfileSelector() {
+  const sel = document.getElementById('profile-selector');
+  const list = document.getElementById('profile-list-items');
+  list.innerHTML = state.profiles.map(p => `
+    <div class="profile-card" onclick="selectProfile('${p.id}')">
+      <div class="profile-avatar" style="background:${p.color}">${p.name[0].toUpperCase()}</div>
+      <div class="profile-info">
+        <div class="profile-name">${p.name}</div>
+        <div class="profile-meta">${getAge(p.birthday)} yrs • ${p.height ? heightDisplay(p.height) : ''} • ${p.sex || ''}</div>
+      </div>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+    </div>
+  `).join('');
+  sel.classList.remove('hidden');
+}
+
+function selectProfile(id) {
+  state.currentProfile = id;
+  document.getElementById('profile-selector').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  updateTopbarProfile();
+  navTo('dashboard');
+  refreshCurrentPage();
+}
+
+function updateTopbarProfile() {
+  const p = getProfile();
+  if (!p) return;
+  const av = document.getElementById('topbar-avatar');
+  av.textContent = p.name[0].toUpperCase();
+  av.style.background = p.color;
+}
+
+function getProfile(id) {
+  id = id || state.currentProfile;
+  return state.profiles.find(p => p.id === id);
+}
+
+function showAddProfileModal(isFirst) {
+  if (isFirst) {
+    document.getElementById('add-profile-modal').querySelector('.modal-title').textContent = 'Create Your Profile';
+  }
+  openModal('add-profile-modal');
+}
+
+function createProfile() {
+  const name = document.getElementById('new-profile-name').value.trim();
+  if (!name) { showToast('Please enter a name'); return; }
+  const colors = ['#3b82f6','#8b5cf6','#ec4899','#10b981','#f59e0b','#06b6d4'];
+  const id = 'p_' + Date.now();
+  const profile = {
+    id, name,
+    birthday: document.getElementById('new-profile-birthday').value,
+    height: parseFloat(document.getElementById('new-profile-height').value) || null,
+    sex: document.getElementById('new-profile-sex').value,
+    color: colors[state.profiles.length % colors.length]
+  };
+  state.profiles.push(profile);
+  state.settings[id] = { calGoal: 2000, stepGoal: 10000, sleepGoal: 8, waterGoal: 8, targetWeight: null };
+  saveToStorage();
+  closeModal('add-profile-modal');
+  document.getElementById('new-profile-name').value = '';
+  document.getElementById('new-profile-birthday').value = '';
+  document.getElementById('new-profile-height').value = '';
+  
+  selectProfile(id);
+  showToast('Profile created!');
+}
+
+function getAge(birthday) {
+  if (!birthday) return '?';
+  const b = new Date(birthday);
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+}
+
+function heightDisplay(inches) {
+  const ft = Math.floor(inches / 12);
+  const i = Math.round(inches % 12);
+  return `${ft}'${i}"`;
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+  const nb = document.getElementById('nav-' + page);
+  if (nb) nb.classList.add('active');
+  refreshPage(page);
+  window.scrollTo(0, 0);
+}
+
+function refreshCurrentPage() {
+  const visible = document.querySelector('.page:not(.hidden)');
+  if (visible) {
+    const page = visible.id.replace('page-', '');
+    refreshPage(page);
+  }
+}
+
+function refreshPage(page) {
+  updateDateDisplays();
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'sleep') loadSleepPage();
+  if (page === 'food') loadFoodPage();
+  if (page === 'exercise') loadExercisePage();
+  if (page === 'weight') loadWeightPage();
+  if (page === 'trends') renderTrends();
+  if (page === 'settings') loadSettingsPage();
+}
+
+// ============================================================
+// DATE
+// ============================================================
+function changeDay(delta) {
+  const d = new Date(state.currentDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  state.currentDate = d.toISOString().split('T')[0];
+  refreshCurrentPage();
+}
+
+function updateDateDisplays() {
+  const d = new Date(state.currentDate + 'T00:00:00');
+  const today = new Date().toISOString().split('T')[0];
+  let label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  if (state.currentDate === today) label = 'Today — ' + label;
+  ['dash-date','sleep-date','food-date','exercise-date','weight-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
+}
+
+function openDatePicker() {
+  const d = prompt('Enter date (YYYY-MM-DD):', state.currentDate);
+  if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    state.currentDate = d;
+    refreshCurrentPage();
+  }
+}
+
+// ============================================================
+// DATA HELPERS
+// ============================================================
+function getDayData(category) {
+  const pid = state.currentProfile;
+  if (!state.data[pid]) state.data[pid] = {};
+  if (!state.data[pid][state.currentDate]) state.data[pid][state.currentDate] = {};
+  return state.data[pid][state.currentDate][category] || {};
+}
+
+function setDayData(category, value) {
+  const pid = state.currentProfile;
+  if (!state.data[pid]) state.data[pid] = {};
+  if (!state.data[pid][state.currentDate]) state.data[pid][state.currentDate] = {};
+  state.data[pid][state.currentDate][category] = value;
+  setSyncStatus('pending');
+  setTimeout(saveToStorage, 500);
+}
+
+function getSettings() {
+  return state.settings[state.currentProfile] || { calGoal: 2000, stepGoal: 10000, sleepGoal: 8, waterGoal: 8 };
+}
+
+// ============================================================
+// SCORING ENGINE
+// ============================================================
+function scoreSleep(d) {
+  return scoreSleepFormula(d);
+}
+
+function scoreSleepTrackerStyle(d) {
+  // Reverse-engineered from Sleeptracker's weighting based on known data points.
+  // Weights: efficiency 30%, total vs goal 25%, deep sleep % 20%, REM % 15%, wake-ups 10%
+  if (!d || !d.total) return null;
+  let score = 0;
+  const goal = getSettings().sleepGoal || 8;
+
+  // 1. Sleep efficiency (30 pts) — matches Sleeptracker's heavy weighting
+  const eff = d.efficiency || (d.total && d.awake != null ? Math.round((d.total / (d.total + d.awake)) * 100) : null);
+  if (eff !== null) {
+    if (eff >= 95) score += 30;
+    else if (eff >= 90) score += 26;
+    else if (eff >= 85) score += 20;
+    else if (eff >= 75) score += 12;
+    else score += 5;
+  } else { score += 20; } // assume avg if not provided
+
+  // 2. Total sleep vs goal (25 pts)
+  const diff = d.total - goal;
+  if (diff >= -0.25 && diff <= 0.5) score += 25;
+  else if (diff >= -0.75 && diff <= 1.0) score += 20;
+  else if (diff >= -1.5 && diff <= 1.5) score += 12;
+  else score += 4;
+
+  // 3. Deep sleep % (20 pts) — Sleeptracker rewards 20-25%+ deep
+  if (d.deep && d.total) {
+    const deepPct = (d.deep / d.total) * 100;
+    if (deepPct >= 22) score += 20;
+    else if (deepPct >= 17) score += 16;
+    else if (deepPct >= 12) score += 10;
+    else score += 4;
+  } else { score += 12; }
+
+  // 4. REM sleep % (15 pts) — targets ~20-25%
+  if (d.rem && d.total) {
+    const remPct = (d.rem / d.total) * 100;
+    if (remPct >= 22) score += 15;
+    else if (remPct >= 17) score += 12;
+    else if (remPct >= 12) score += 7;
+    else score += 2;
+  } else { score += 9; }
+
+  // 5. Wake-ups (10 pts)
+  const wakeups = d.wakeups || 0;
+  if (wakeups === 0) score += 10;
+  else if (wakeups === 1) score += 8;
+  else if (wakeups === 2) score += 5;
+  else if (wakeups <= 4) score += 2;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreFood(d) {
+  if (!d || !d.items || d.items.length === 0) return null;
+  const goal = getSettings().calGoal || 2000;
+  const total = d.items.reduce((a, f) => a + (f.calories || 0), 0);
+  let s = 100;
+  const diff = Math.abs(total - goal) / goal;
+  s -= Math.min(40, diff * 80);
+  const water = d.water || 0;
+  const waterGoal = getSettings().waterGoal || 8;
+  const waterPct = Math.min(1, water / waterGoal);
+  s = s * 0.8 + waterPct * 20;
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+function scoreExercise(d) {
+  if (!d) return null;
+  const steps = d.steps || 0;
+  const stand = d.standHours || 0;
+  const sessions = (d.sessions || []).reduce((a, s) => a + (s.mins || 0), 0);
+  if (steps === 0 && sessions === 0) return null;
+  let s = 0;
+  const stepGoal = getSettings().stepGoal || 10000;
+  s += Math.min(50, (steps / stepGoal) * 50);
+  s += Math.min(25, (sessions / 30) * 25);
+  s += Math.min(25, (stand / 12) * 25);
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+function scoreWeight(d, profile) {
+  if (!d || !d.weight) return null;
+
+  const sex = profile?.sex || 'male';
+  const fIdeal = sex === 'male' ? 15.0 : 22.0;
+  const vIdeal = 10.0;
+
+  // Body Fat Penalty
+  const pFat = d.bf != null ? Math.max(0, (d.bf - fIdeal) * 2) : 0;
+
+  // Visceral Fat Penalty
+  const pVisceral = d.vf != null ? Math.max(0, (d.vf - vIdeal) * 1.5) : 0;
+
+  // Base score with penalties, floored at 40
+  const baseScore = Math.max(40, 100 - pFat - pVisceral);
+
+  // Goal proximity bonus (up to 20% boost)
+  const settings = getSettings();
+  let multiplier = 1.0;
+  if (d.weight && settings.targetWeight) {
+    const wR = 50.0;   // bonus starts within 50 lbs of goal
+    const bMax = 0.20; // max 20% bonus
+    const dist = Math.abs(d.weight - settings.targetWeight);
+    const bonus = Math.max(0, bMax * (1 - dist / wR));
+    multiplier = 1 + bonus;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(baseScore * multiplier)));
+}
+
+function calcDailyScore(date) {
+  return calcDailyScoreForDate(date || state.currentDate);
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+function renderDashboard() {
+  const { total, scores } = calcDailyScore(state.currentDate);
+  const scoreEl = document.getElementById('dash-score');
+  const arc = document.getElementById('score-arc');
+
+  if (total !== null) {
+    scoreEl.textContent = total;
+    const circumference = 427;
+    const offset = circumference - (total / 100) * circumference;
+    arc.style.strokeDashoffset = offset;
+    const color = total >= 80 ? '#22c55e' : total >= 60 ? '#f59e0b' : '#ef4444';
+    arc.style.stroke = color;
+  } else {
+    scoreEl.textContent = '--';
+    arc.style.strokeDashoffset = 427;
+  }
+
+  // Category scores
+  const cats = [
+    { key:'sleep', label:'Sleep', color: 'var(--sleep)', icon:'😴' },
+    { key:'food', label:'Food', color: 'var(--food)', icon:'🥗' },
+    { key:'exercise', label:'Exercise', color: 'var(--exercise)', icon:'🏋️' },
+    { key:'weight', label:'Body', color: 'var(--weight)', icon:'⚖️' }
+  ];
+  document.getElementById('cat-scores').innerHTML = cats.map(c => {
+    const v = scores[c.key];
+    const disp = v !== null ? v : '--';
+    const pct = v !== null ? v : 0;
+    return `<div class="cat-score">
+      <div class="cat-score-label">${c.icon} ${c.label}</div>
+      <div class="cat-score-val" style="color:${c.color}">${disp}</div>
+      <div class="cat-score-bar"><div class="cat-score-bar-fill" style="width:${pct}%;background:${c.color}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Summary
+  renderDashSummary();
+}
+
+function renderDashSummary() {
+  const pid = state.currentProfile;
+  const dayData = (state.data[pid] || {})[state.currentDate] || {};
+  const s = dayData.sleep || {};
+  const f = dayData.food || {};
+  const e = dayData.exercise || {};
+  const w = dayData.weight || {};
+  const settings = getSettings();
+  const profile = getProfile();
+
+  let html = `<div class="card-title">Today's Snapshot</div>`;
+
+  if (s.total) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">😴 Sleep</span><span style="color:var(--sleep);font-weight:600">${s.total}h total · ${s.deep||'?'}h deep · ${s.rem||'?'}h REM</span></div>`;
+  
+  const totalCals = (f.items||[]).reduce((a,i) => a+i.calories,0);
+  if (totalCals > 0) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🥗 Calories</span><span style="color:var(--food);font-weight:600">${totalCals} / ${settings.calGoal||2000} kcal</span></div>`;
+  
+  if (e.steps) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🏃 Steps</span><span style="color:var(--exercise);font-weight:600">${e.steps.toLocaleString()} / ${(settings.stepGoal||10000).toLocaleString()}</span></div>`;
+  
+  if (w.weight) {
+    const p = getProfile();
+    let bmi = '';
+    if (p && p.height) { const bmiVal = (w.weight / (p.height * p.height)) * 703; bmi = ` · BMI ${bmiVal.toFixed(1)}`; }
+    html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">⚖️ Weight</span><span style="color:var(--weight);font-weight:600">${w.weight} lbs${bmi}</span></div>`;
+  }
+
+  if (!s.total && !totalCals && !e.steps && !w.weight) {
+    html += `<div style="text-align:center;padding:20px;color:var(--text-muted)">No data logged yet today.<br><span style="font-size:13px">Use the buttons above to start logging.</span></div>`;
+  }
+
+  document.getElementById('dash-summary').innerHTML = html;
+}
+
+// ============================================================
+// SLEEP PAGE
+// ============================================================
+// Helper: convert decimal hours to {h, m}
+function hrsToHM(val) {
+  if (!val && val !== 0) return { h: '', m: '' };
+  const h = Math.floor(val);
+  const m = Math.round((val - h) * 60);
+  return { h: h || '', m: m || '' };
+}
+// Helper: convert h+m inputs to decimal hours
+function hmToHrs(hId, mId) {
+  const h = parseInt(document.getElementById(hId)?.value) || 0;
+  const m = parseInt(document.getElementById(mId)?.value) || 0;
+  if (!h && !m) return null;
+  return h + m / 60;
+}
+
+function loadSleepPage() {
+  const d = getDayData('sleep');
+  // hrs/min fields
+  const fields = [
+    { key: 'total', hId: 's-total-h', mId: 's-total-m' },
+    { key: 'awake', hId: 's-awake-h', mId: 's-awake-m' },
+    { key: 'deep',  hId: 's-deep-h',  mId: 's-deep-m' },
+    { key: 'light', hId: 's-light-h', mId: 's-light-m' },
+    { key: 'rem',   hId: 's-rem-h',   mId: 's-rem-m' },
+  ];
+  fields.forEach(f => {
+    const { h, m } = hrsToHM(d[f.key]);
+    const hEl = document.getElementById(f.hId);
+    const mEl = document.getElementById(f.mId);
+    if (hEl) hEl.value = h;
+    if (mEl) mEl.value = m;
+  });
+  // plain fields
+  ['wakeups','hr','breath','efficiency'].forEach(k => {
+    const map = { wakeups:'s-wakeups', hr:'s-hr', breath:'s-breath', efficiency:'s-efficiency' };
+    const el = document.getElementById(map[k]);
+    if (el) el.value = d[k] != null ? d[k] : '';
+  });
+  const faEl = document.getElementById('s-fellasleep');
+  if (faEl) faEl.value = d.fellAsleep || '';
+  const sqEl = document.getElementById('sleep-quality-input');
+  if (sqEl) sqEl.value = d.qualityScore != null ? d.qualityScore : '';
+  updateSleepScore();
+}
+
+function saveSleep() {
+  const d = {
+    total:      hmToHrs('s-total-h', 's-total-m'),
+    awake:      hmToHrs('s-awake-h', 's-awake-m'),
+    deep:       hmToHrs('s-deep-h', 's-deep-m'),
+    light:      hmToHrs('s-light-h', 's-light-m'),
+    rem:        hmToHrs('s-rem-h', 's-rem-m'),
+    wakeups:    parseInt(document.getElementById('s-wakeups')?.value) || 0,
+    hr:         parseInt(document.getElementById('s-hr')?.value) || null,
+    breath:     parseFloat(document.getElementById('s-breath')?.value) || null,
+    efficiency: parseFloat(document.getElementById('s-efficiency')?.value) || null,
+    fellAsleep: document.getElementById('s-fellasleep')?.value || null,
+  };
+  setDayData('sleep', d);
+  updateSleepScore();
+  showToast('Sleep saved ✓');
+}
+
+function saveSleepQualityScore(val) {
+  const d = getDayData('sleep');
+  d.qualityScore = val !== '' ? parseInt(val) : null;
+  setDayData('sleep', d);
+}
+
+function calcRollingBaseline() {
+  const pid = state.currentProfile;
+  const profileData = state.data[pid] || {};
+  const today = state.currentDate;
+  const entries = [];
+  // Look back up to 30 days, skip today
+  for (let i = 1; i <= 30; i++) {
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const sleepData = profileData[dateStr]?.sleep;
+    if (sleepData && (sleepData.hr || sleepData.breath)) {
+      entries.push(sleepData);
+    }
+  }
+  if (entries.length < 3) return null; // not enough data
+  const hrEntries = entries.filter(e => e.hr);
+  const brEntries = entries.filter(e => e.breath);
+  return {
+    hr: hrEntries.length >= 3 ? hrEntries.reduce((a, e) => a + e.hr, 0) / hrEntries.length : null,
+    breath: brEntries.length >= 3 ? brEntries.reduce((a, e) => a + e.breath, 0) / brEntries.length : null,
+    count: entries.length
+  };
+}
+
+function scoreSleepFormula(d) {
+  if (!d || !d.total) return null;
+  const goalHrs = getSettings().sleepGoal || 8;
+  const goalMins = goalHrs * 60;
+
+  // Convert all to minutes
+  const tSleep = Math.round(d.total * 60);
+  const tAwake = d.awake ? Math.round(d.awake * 60) : 0;
+  const tBed = tSleep + tAwake;
+  const tDeep = d.deep ? Math.round(d.deep * 60) : 0;
+  const tRem = d.rem ? Math.round(d.rem * 60) : 0;
+
+  // Duration Score (40%)
+  const sDuration = Math.min(100, (tSleep / goalMins) * 100);
+
+  // Efficiency Score (30%) — requires awake time
+  const sEfficiency = tBed > 0 ? Math.min(100, (tSleep / tBed) * 100) : null;
+
+  // Quality Score (30%) — deep + REM vs 40% of total sleep
+  const sQuality = tSleep > 0 ? Math.min(100, ((tDeep + tRem) / (tSleep * 0.40)) * 100) : null;
+
+  // Weighted sum — drop a component gracefully if missing data
+  let weightedSum = 0;
+  let totalWeight = 0;
+
+  weightedSum += 0.40 * sDuration; totalWeight += 0.40;
+  if (sEfficiency !== null) { weightedSum += 0.30 * sEfficiency; totalWeight += 0.30; }
+  if (sQuality !== null) { weightedSum += 0.30 * sQuality; totalWeight += 0.30; }
+
+  let score = totalWeight > 0 ? (weightedSum / totalWeight) : sDuration;
+
+  // Vitals penalty using rolling baseline
+  const baseline = calcRollingBaseline();
+  if (baseline) {
+    if (d.hr && baseline.hr && d.hr > baseline.hr * 1.05) score -= 5;
+    if (d.breath && baseline.breath && d.breath > baseline.breath + 1.0) score -= 5;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function updateSleepScore() {
+  const d = getDayData('sleep');
+  const vtScore = scoreSleepFormula(d);
+
+  // VitalTrack score
+  const vtEl = document.getElementById('sleep-score-display');
+  if (vtEl) {
+    vtEl.textContent = vtScore !== null ? vtScore : '--';
+    vtEl.style.color = vtScore !== null ? (vtScore >= 80 ? 'var(--success)' : vtScore >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
+  }
+
+  // Breakdown text
+  const bd = document.getElementById('sleep-score-breakdown');
+  if (bd && d.total) {
+    const baseline = calcRollingBaseline();
+    const goalHrs = getSettings().sleepGoal || 8;
+    const tSleep = Math.round(d.total * 60);
+    const tAwake = d.awake ? Math.round(d.awake * 60) : 0;
+    const tBed = tSleep + tAwake;
+    const eff = tBed > 0 ? Math.round((tSleep / tBed) * 100) : null;
+    let parts = [`${d.total.toFixed(1)}h vs ${goalHrs}h goal`];
+    if (eff !== null) parts.push(`${eff}% efficiency`);
+    if (baseline) {
+      parts.push(`baseline from ${baseline.count} nights`);
+    } else {
+      parts.push('3+ nights needed for vitals baseline');
+    }
+    bd.textContent = parts.join(' · ');
+  }
+}
+
+// ============================================================
+// FOOD PAGE
+// ============================================================
+function loadFoodPage() {
+  renderFoodLog();
+  renderWaterTracker();
+  renderSavedMealsQuick();
+  updateFoodScore();
+}
+
+function renderWaterTracker() {
+  const d = getDayData('food');
+  const water = d.water || 0;
+  const goal = getSettings().waterGoal || 8;
+  document.getElementById('water-count').textContent = `${water} / ${goal} glasses`;
+  let html = '';
+  for (let i = 0; i < goal; i++) {
+    html += `<div class="water-cup ${i < water ? 'filled' : ''}" onclick="logWater(${i+1})">💧</div>`;
+  }
+  document.getElementById('water-cups').innerHTML = html;
+}
+
+function logWater(n) {
+  const d = getDayData('food');
+  if (!d.items) d.items = [];
+  d.water = (d.water || 0) === n ? n - 1 : n; // toggle
+  setDayData('food', d);
+  renderWaterTracker();
+}
+
+function renderFoodLog() {
+  const d = getDayData('food');
+  const items = d.items || [];
+  const totalCals = items.reduce((a, f) => a + (f.calories||0), 0);
+  const totalP = items.reduce((a, f) => a + (f.protein||0), 0);
+  const totalC = items.reduce((a, f) => a + (f.carbs||0), 0);
+  const totalF = items.reduce((a, f) => a + (f.fat||0), 0);
+  const totalFiber = items.reduce((a, f) => a + (f.fiber||0), 0);
+  const calGoal = getSettings().calGoal || 2000;
+
+  document.getElementById('total-cals').textContent = `${Math.round(totalCals)} kcal`;
+
+  // Macro summary
+  const macroEl = document.getElementById('macro-summary');
+  if (items.length > 0) {
+    const totalMacro = totalP + totalC + totalF;
+    const pp = totalMacro > 0 ? (totalP/totalMacro)*100 : 33;
+    const cp = totalMacro > 0 ? (totalC/totalMacro)*100 : 33;
+    const fp = totalMacro > 0 ? (totalF/totalMacro)*100 : 34;
+    macroEl.innerHTML = `
+      <div class="flex-between text-xs text-muted" style="margin-bottom:4px;">
+        <span>🟣 Protein ${Math.round(totalP)}g</span>
+        <span>🟢 Carbs ${Math.round(totalC)}g</span>
+        <span>🟡 Fat ${Math.round(totalF)}g</span>
+        <span>Fiber ${Math.round(totalFiber)}g</span>
+      </div>
+      <div class="macro-bar"><div class="macro-p" style="width:${pp}%"></div><div class="macro-c" style="width:${cp}%"></div><div class="macro-f" style="width:${fp}%"></div></div>`;
+  } else { macroEl.innerHTML = ''; }
+
+  // Food list
+  const listEl = document.getElementById('food-log-list');
+  listEl.innerHTML = items.length === 0 ? '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No foods logged yet</div>' :
+    items.map((f, i) => `
+      <div class="food-item">
+        <div>
+          <div class="food-item-name">${f.name}</div>
+          <div class="food-item-meta">${f.servingDesc || f.serving + ' serving'} · P:${Math.round(f.protein||0)}g C:${Math.round(f.carbs||0)}g F:${Math.round(f.fat||0)}g</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="food-item-cal">${Math.round(f.calories)}</div>
+          <button onclick="removeFood(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;">×</button>
+        </div>
+      </div>`).join('');
+
+  // Goal progress
+  const goalEl = document.getElementById('food-goal-progress');
+  const pct = Math.min(100, (totalCals / calGoal) * 100);
+  const remaining = calGoal - totalCals;
+  goalEl.innerHTML = `
+    <div class="flex-between text-xs text-muted" style="margin-bottom:4px;"><span>Goal: ${calGoal} kcal</span><span>${remaining > 0 ? remaining + ' remaining' : Math.abs(remaining) + ' over'}</span></div>
+    <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:${pct > 110 ? 'var(--danger)' : pct > 90 ? 'var(--exercise)' : 'var(--food)'};border-radius:3px;transition:width 0.4s;"></div></div>`;
+}
+
+function removeFood(i) {
+  const d = getDayData('food');
+  if (!d.items) return;
+  d.items.splice(i, 1);
+  setDayData('food', d);
+  renderFoodLog();
+  updateFoodScore();
+}
+
+function debounceSearch(val) {
+  clearTimeout(searchTimeout);
+  if (!val || val.length < 2) { document.getElementById('food-search-results').classList.add('hidden'); return; }
+  searchTimeout = setTimeout(() => searchFood(val), 500);
+}
+
+async function searchFood(query) {
+  const res = document.getElementById('food-search-results');
+  res.classList.remove('hidden');
+  res.innerHTML = '<div class="search-result-item"><div class="spinner" style="margin:0 auto;"></div></div>';
+  res.className = 'search-results';
+
+  try {
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=10&api_key=DEMO_KEY`;
+    const r = await fetch(url);
+    const data = await r.json();
+    const foods = (data.foods || []).slice(0, 8);
+    
+    if (foods.length === 0) { res.innerHTML = '<div class="search-result-item text-muted">No results found</div>'; return; }
+    
+    res.innerHTML = foods.map(f => {
+      const cals = (f.foodNutrients||[]).find(n => n.nutrientName?.includes('Energy') && n.unitName === 'KCAL');
+      const protein = (f.foodNutrients||[]).find(n => n.nutrientName?.includes('Protein'));
+      const carbs = (f.foodNutrients||[]).find(n => n.nutrientName?.includes('Carbohydrate') && n.nutrientName?.includes('difference'));
+      const fat = (f.foodNutrients||[]).find(n => n.nutrientName?.includes('Total lipid'));
+      return `<div class="search-result-item" onclick='selectFood(${JSON.stringify({
+        fdcId: f.fdcId, name: f.description,
+        calories: cals?.value||0, protein: protein?.value||0,
+        carbs: carbs?.value||0, fat: fat?.value||0,
+        brandOwner: f.brandOwner||'', serving: f.servingSize||100, servingUnit: f.servingSizeUnit||'g'
+      })})'>
+        <div class="search-result-name">${f.description}</div>
+        <div class="search-result-meta">${f.brandOwner||'Generic'} · ${Math.round(cals?.value||0)} kcal per 100g · P:${Math.round(protein?.value||0)}g</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    res.innerHTML = '<div class="search-result-item text-muted">Search unavailable. Check internet connection.</div>';
+  }
+}
+
+function selectFood(food) {
+  pendingFoodItem = food;
+  document.getElementById('add-food-modal-title').textContent = food.name.length > 30 ? food.name.substring(0,30)+'...' : food.name;
+  document.getElementById('add-food-modal-content').innerHTML = `
+    <div class="card-sm" style="margin-bottom:14px;background:var(--surface2);">
+      <div class="text-sm"><b>${food.name}</b></div>
+      <div class="text-xs text-muted mt-2">Per 100g: ${Math.round(food.calories)} kcal · P:${Math.round(food.protein)}g · C:${Math.round(food.carbs)}g · F:${Math.round(food.fat)}g</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Servings</label><input type="number" id="food-servings" class="form-input" value="1" step="0.25" min="0.25" oninput="updateFoodCalcPreview()"></div>
+      <div class="form-group"><label class="form-label">Serving Size (g)</label><input type="number" id="food-serv-size" class="form-input" value="${food.serving||100}" oninput="updateFoodCalcPreview()"></div>
+    </div>
+    <div id="food-calc-preview" class="text-sm text-muted" style="margin-bottom:14px;"></div>
+    <div class="form-group"><label class="form-label">Label (optional)</label><input type="text" id="food-label" class="form-input" placeholder="e.g. Breakfast, Lunch..."></div>
+    <div style="display:flex;gap:10px;margin-bottom:8px;">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-food-modal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="confirmAddFood()">Add</button>
+    </div>
+    <button class="btn btn-secondary btn-sm btn-full" onclick="saveAsMeal()">💾 Save as Meal</button>`;
+  updateFoodCalcPreview();
+  openModal('add-food-modal');
+  document.getElementById('food-search-input').value = '';
+  document.getElementById('food-search-results').classList.add('hidden');
+}
+
+function updateFoodCalcPreview() {
+  if (!pendingFoodItem) return;
+  const servings = parseFloat(document.getElementById('food-servings').value) || 1;
+  const size = parseFloat(document.getElementById('food-serv-size').value) || 100;
+  const factor = (servings * size) / 100;
+  const f = pendingFoodItem;
+  document.getElementById('food-calc-preview').textContent =
+    `Total: ${Math.round(f.calories*factor)} kcal · P:${Math.round(f.protein*factor)}g · C:${Math.round(f.carbs*factor)}g · F:${Math.round(f.fat*factor)}g`;
+}
+
+function confirmAddFood() {
+  if (!pendingFoodItem) return;
+  const servings = parseFloat(document.getElementById('food-servings').value) || 1;
+  const size = parseFloat(document.getElementById('food-serv-size').value) || 100;
+  const factor = (servings * size) / 100;
+  const f = pendingFoodItem;
+  const item = {
+    name: f.name, serving: servings, servingDesc: `${servings}x ${size}g`,
+    calories: f.calories * factor, protein: f.protein * factor,
+    carbs: f.carbs * factor, fat: f.fat * factor
+  };
+  const d = getDayData('food');
+  if (!d.items) d.items = [];
+  d.items.push(item);
+  setDayData('food', d);
+  closeModal('add-food-modal');
+  renderFoodLog();
+  updateFoodScore();
+  showToast('Food added ✓');
+}
+
+function saveAsMeal() {
+  if (!pendingFoodItem) return;
+  const pid = state.currentProfile;
+  if (!state.savedMeals[pid]) state.savedMeals[pid] = [];
+  const exists = state.savedMeals[pid].find(m => m.fdcId === pendingFoodItem.fdcId);
+  if (!exists) {
+    state.savedMeals[pid].push(pendingFoodItem);
+    saveToStorage();
+    showToast('Meal saved ✓');
+  } else { showToast('Already saved'); }
+}
+
+function renderSavedMealsQuick() {
+  const pid = state.currentProfile;
+  const meals = (state.savedMeals[pid] || []).slice(0, 3);
+  const el = document.getElementById('saved-meals-quick');
+  if (meals.length === 0) { el.innerHTML = '<div class="text-xs text-muted">No saved meals yet</div>'; return; }
+  el.innerHTML = meals.map(m => `
+    <div class="saved-meal-item">
+      <div>
+        <div class="text-sm" style="font-weight:500;">${m.name.length>28?m.name.substring(0,28)+'...':m.name}</div>
+        <div class="text-xs text-muted">${Math.round(m.calories)} kcal/100g</div>
+      </div>
+      <button class="btn btn-sm btn-secondary" onclick='selectFood(${JSON.stringify(m)})'>Add</button>
+    </div>`).join('');
+}
+
+function showSavedMeals() {
+  const pid = state.currentProfile;
+  const meals = state.savedMeals[pid] || [];
+  const el = document.getElementById('saved-meals-list');
+  el.innerHTML = meals.length === 0 ? '<div class="text-muted text-sm">No saved meals yet</div>' :
+    meals.map((m, i) => `
+      <div class="saved-meal-item">
+        <div>
+          <div style="font-weight:500;font-size:14px;">${m.name}</div>
+          <div class="text-xs text-muted">${Math.round(m.calories)} kcal · P:${Math.round(m.protein)}g C:${Math.round(m.carbs)}g F:${Math.round(m.fat)}g per 100g</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm btn-secondary" onclick='selectFood(${JSON.stringify(m)});closeModal("saved-meals-modal")'>Add</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteSavedMeal(${i})">×</button>
+        </div>
+      </div>`).join('');
+  openModal('saved-meals-modal');
+}
+
+function deleteSavedMeal(i) {
+  const pid = state.currentProfile;
+  state.savedMeals[pid].splice(i, 1);
+  saveToStorage();
+  showSavedMeals();
+}
+
+function updateFoodScore() {
+  const d = getDayData('food');
+  const score = scoreFood(d);
+  const el = document.getElementById('food-score-display');
+  if (el) {
+    el.textContent = score !== null ? score : '--';
+    el.style.color = score !== null ? (score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
+  }
+}
+
+// ============================================================
+// EXERCISE PAGE
+// ============================================================
+function loadExercisePage() {
+  const d = getDayData('exercise');
+  document.getElementById('e-steps').value = d.steps || '';
+  document.getElementById('e-stand').value = d.standHours || '';
+  document.getElementById('e-active-cal').value = d.activeCal || '';
+  document.getElementById('e-total-cal').value = d.totalCal || '';
+  document.getElementById('e-distance').value = d.distance || '';
+  document.getElementById('e-flights').value = d.flights || '';
+  renderSessionList();
+  updateExerciseScore();
+  renderExerciseStats();
+}
+
+function saveExerciseDaily() {
+  const d = getDayData('exercise');
+  d.steps     = parseInt(document.getElementById('e-steps').value) || 0;
+  d.standHours= parseInt(document.getElementById('e-stand').value) || 0;
+  d.activeCal = parseInt(document.getElementById('e-active-cal').value) || null;
+  d.totalCal  = parseInt(document.getElementById('e-total-cal').value) || null;
+  d.distance  = parseFloat(document.getElementById('e-distance').value) || null;
+  d.flights   = parseInt(document.getElementById('e-flights').value) || null;
+  setDayData('exercise', d);
+  updateExerciseScore();
+  renderExerciseStats();
+  showToast('Activity saved ✓');
+}
+
+function renderExerciseStats() {
+  const d = getDayData('exercise');
+  const el = document.getElementById('exercise-stats-card');
+  if (!el) return;
+  const settings = getSettings();
+  let html = '<div class="card-subtitle">Activity Summary</div>';
+  if (d.steps) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Steps</span><span style="font-weight:600;color:var(--exercise)">${d.steps.toLocaleString()} / ${(settings.stepGoal||10000).toLocaleString()}</span></div>`;
+  if (d.activeCal) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Active Calories</span><span style="font-weight:600">${d.activeCal} kcal</span></div>`;
+  if (d.totalCal) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Total Calories</span><span style="font-weight:600">${d.totalCal} kcal</span></div>`;
+  if (d.distance) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Distance</span><span style="font-weight:600">${d.distance} mi</span></div>`;
+  if (d.standHours) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Stand Hours</span><span style="font-weight:600">${d.standHours} hrs</span></div>`;
+  if (d.flights) html += `<div class="flex-between" style="padding:5px 0"><span class="text-muted">Flights Climbed</span><span style="font-weight:600">${d.flights}</span></div>`;
+  if (!d.steps && !d.activeCal) html += '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No activity logged yet</div>';
+  el.innerHTML = html;
+}
+
+function showAddSessionModal() {
+  // Clear form for new session
+  document.getElementById('session-modal-title').textContent = 'Add Exercise Session';
+  document.getElementById('sess-save-btn').textContent = 'Add Session';
+  document.getElementById('sess-edit-index').value = '';
+  ['sess-type','sess-mins','sess-hr','sess-active-cal','sess-total-cal','sess-workouts'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  openModal('add-session-modal');
+}
+
+function editSession(i) {
+  const d = getDayData('exercise');
+  const s = d.sessions[i];
+  if (!s) return;
+  document.getElementById('session-modal-title').textContent = 'Edit Exercise Session';
+  document.getElementById('sess-save-btn').textContent = 'Save Changes';
+  document.getElementById('sess-edit-index').value = i;
+  document.getElementById('sess-type').value = s.type || '';
+  document.getElementById('sess-mins').value = s.mins || '';
+  document.getElementById('sess-hr').value = s.hr || '';
+  document.getElementById('sess-active-cal').value = s.activeCal || '';
+  document.getElementById('sess-total-cal').value = s.totalCal || '';
+  document.getElementById('sess-workouts').value = s.workouts || '';
+  openModal('add-session-modal');
+}
+
+function saveSession() {
+  const type = document.getElementById('sess-type').value.trim();
+  const mins = parseInt(document.getElementById('sess-mins').value) || 0;
+  const hr = parseInt(document.getElementById('sess-hr').value) || null;
+  const activeCal = parseInt(document.getElementById('sess-active-cal').value) || null;
+  const totalCal = parseInt(document.getElementById('sess-total-cal').value) || null;
+  const workouts = document.getElementById('sess-workouts').value.trim();
+  const editIdx = document.getElementById('sess-edit-index').value;
+
+  if (!type || mins === 0) { showToast('Enter workout type and duration'); return; }
+
+  const d = getDayData('exercise');
+  if (!d.sessions) d.sessions = [];
+
+  const sessionObj = { type, mins, hr, activeCal, totalCal, workouts, id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() };
+
+  if (editIdx !== '') {
+    d.sessions[parseInt(editIdx)] = sessionObj;
+    showToast('Session updated ✓');
+  } else {
+    d.sessions.push(sessionObj);
+    showToast('Session added ✓');
+  }
+
+  setDayData('exercise', d);
+  closeModal('add-session-modal');
+  renderSessionList();
+  updateExerciseScore();
+}
+
+function renderSessionList() {
+  const d = getDayData('exercise');
+  const sessions = d.sessions || [];
+  const el = document.getElementById('session-list');
+  el.innerHTML = sessions.length === 0 ? '<div class="text-muted text-sm">No sessions logged yet</div>' :
+    sessions.map((s, i) => `
+      <div class="session-item">
+        <div class="flex-between" style="margin-bottom:4px;">
+          <div style="font-weight:600;font-size:14px;">${s.type}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--exercise);font-size:13px;font-weight:600;">${s.mins} min</span>
+            <button onclick="editSession(${i})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 8px;font-family:inherit;">Edit</button>
+            <button onclick="removeSession(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">×</button>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          ${s.hr ? `<span class="text-xs text-muted">❤️ ${s.hr} bpm avg</span>` : ''}
+          ${s.activeCal ? `<span class="text-xs text-muted">🔥 ${s.activeCal} active cal</span>` : ''}
+          ${s.totalCal ? `<span class="text-xs text-muted">⚡ ${s.totalCal} total cal</span>` : ''}
+        </div>
+        ${s.workouts ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;">${s.workouts}</div>` : ''}
+      </div>`).join('');
+}
+
+function removeSession(i) {
+  const d = getDayData('exercise');
+  d.sessions.splice(i, 1);
+  setDayData('exercise', d);
+  renderSessionList();
+  updateExerciseScore();
+}
+
+function updateExerciseScore() {
+  const d = getDayData('exercise');
+  const score = scoreExercise(d);
+  const el = document.getElementById('exercise-score-display');
+  if (el) {
+    el.textContent = score !== null ? score : '--';
+    el.style.color = score !== null ? (score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
+  }
+}
+
+// ============================================================
+// WEIGHT PAGE
+// ============================================================
+function loadWeightPage() {
+  const d = getDayData('weight');
+  const fields = ['weight','bf','vf','mm','sm','subf','water','bone','protein','bmr','metage'];
+  const ids = { weight:'w-weight', bf:'w-bf', vf:'w-vf', mm:'w-mm', sm:'w-sm',
+    subf:'w-subf', water:'w-water', bone:'w-bone', protein:'w-protein', bmr:'w-bmr', metage:'w-metage' };
+  fields.forEach(k => { const el = document.getElementById(ids[k]); if (el) el.value = d[k] != null ? d[k] : ''; });
+  updateWeightScore();
+  renderBMICard();
+}
+
+function saveWeight() {
+  const d = {
+    weight:  parseFloat(document.getElementById('w-weight').value) || null,
+    bf:      parseFloat(document.getElementById('w-bf').value) || null,
+    vf:      parseFloat(document.getElementById('w-vf').value) || null,
+    mm:      parseFloat(document.getElementById('w-mm').value) || null,
+    sm:      parseFloat(document.getElementById('w-sm').value) || null,
+    subf:    parseFloat(document.getElementById('w-subf').value) || null,
+    water:   parseFloat(document.getElementById('w-water').value) || null,
+    bone:    parseFloat(document.getElementById('w-bone').value) || null,
+    protein: parseFloat(document.getElementById('w-protein').value) || null,
+    bmr:     parseFloat(document.getElementById('w-bmr').value) || null,
+    metage:  parseFloat(document.getElementById('w-metage').value) || null,
+  };
+  setDayData('weight', d);
+  updateWeightScore();
+  renderBMICard();
+  showToast('Body metrics saved ✓');
+}
+
+function updateWeightScore() {
+  const d = getDayData('weight');
+  const score = scoreWeight(d, getProfile());
+  const el = document.getElementById('weight-score-display');
+  if (el) {
+    el.textContent = score !== null ? score : '--';
+    el.style.color = score !== null ? (score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
+  }
+}
+
+function renderBMICard() {
+  const d = getDayData('weight');
+  const p = getProfile();
+  if (!d.weight) { document.getElementById('bmi-card').innerHTML = ''; return; }
+  let html = '<div class="card-title">Stats</div>';
+  const row = (label, val, color) => `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">${label}</span><span style="font-weight:600;${color?'color:'+color:''}">${val}</span></div>`;
+
+  if (p && p.height) {
+    const bmi = (d.weight / (p.height * p.height)) * 703;
+    let bmiColor = bmi < 18.5 ? 'var(--accent)' : bmi < 25 ? 'var(--success)' : bmi < 30 ? 'var(--exercise)' : 'var(--danger)';
+    let bmiCat = bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Normal' : bmi < 30 ? 'Overweight' : 'Obese';
+    html += row('BMI', `${bmi.toFixed(1)} <small style="font-size:11px;opacity:0.7">${bmiCat}</small>`, bmiColor);
+  }
+  if (d.bf) {
+    html += row('Lean Mass', `${(d.weight * (1 - d.bf/100)).toFixed(1)} lbs`);
+    html += row('Fat Mass', `${(d.weight * d.bf/100).toFixed(1)} lbs`);
+  }
+  if (d.water) html += row('Body Water', `${d.water}%`, 'var(--accent2)');
+  if (d.bone) html += row('Bone Mass', `${d.bone} lbs`);
+  if (d.subf) html += row('Subcutaneous Fat', `${d.subf}%`);
+  if (d.protein) html += row('Protein', `${d.protein}%`, 'var(--sleep)');
+  if (d.bmr) html += row('BMR', `${d.bmr} kcal`, 'var(--food)');
+  if (d.metage) {
+    const actualAge = getAge(getProfile()?.birthday);
+    const diff = d.metage - actualAge;
+    const color = diff <= 0 ? 'var(--success)' : diff <= 5 ? 'var(--exercise)' : 'var(--danger)';
+    html += row('Metabolic Age', `${d.metage} <small style="font-size:11px;opacity:0.7">(actual: ${actualAge})</small>`, color);
+  }
+  const settings = getSettings();
+  if (settings.targetWeight && d.weight) {
+    const diff = d.weight - settings.targetWeight;
+    html += row('To Goal Weight', `${diff > 0 ? '-' : '+'}${Math.abs(diff).toFixed(1)} lbs`, diff > 0 ? 'var(--exercise)' : 'var(--success)');
+  }
+  document.getElementById('bmi-card').innerHTML = html;
+}
+
+// ============================================================
+// TRENDS
+// ============================================================
+function setRange(range, btn) {
+  currentRange = range;
+  document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (range === 'custom') {
+    document.getElementById('custom-range-inputs').classList.remove('hidden');
+  } else {
+    document.getElementById('custom-range-inputs').classList.add('hidden');
+    renderTrends();
+  }
+}
+
+function applyCustomRange() { renderTrends(); }
+
+function getDateRange() {
+  const today = new Date();
+  let from, to = today;
+  if (currentRange === '7d') { from = new Date(today); from.setDate(from.getDate() - 6); }
+  else if (currentRange === '30d') { from = new Date(today); from.setDate(from.getDate() - 29); }
+  else if (currentRange === '3m') { from = new Date(today); from.setMonth(from.getMonth() - 3); }
+  else if (currentRange === '1y') { from = new Date(today); from.setFullYear(from.getFullYear() - 1); }
+  else if (currentRange === 'custom') {
+    const f = document.getElementById('range-from').value;
+    const t = document.getElementById('range-to').value;
+    from = f ? new Date(f) : new Date(today); from.setDate(from.getDate() - 7);
+    to = t ? new Date(t) : today;
+  }
+  const dates = [];
+  const cur = new Date(from);
+  while (cur <= to) {
+    dates.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+function renderTrends() {
+  const dates = getDateRange();
+  const pid = state.currentProfile;
+  const profileData = state.data[pid] || {};
+
+  // Aggregate data
+  const labels = dates.map(d => {
+    const dt = new Date(d + 'T00:00:00');
+    return currentRange === '1y' ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) :
+           currentRange === '3m' ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) :
+           dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  });
+
+  const profile = getProfile();
+  const scores = dates.map(d => { const {total} = calcDailyScoreForDate(d); return total; });
+
+  const sleepVals = dates.map(d => (profileData[d]?.sleep?.total) || null);
+  const weightVals = dates.map(d => (profileData[d]?.weight?.weight) || null);
+  const stepVals = dates.map(d => (profileData[d]?.exercise?.steps) || null);
+  const calVals = dates.map(d => {
+    const items = profileData[d]?.food?.items || [];
+    return items.length > 0 ? items.reduce((a,i) => a + (i.calories||0), 0) : null;
+  });
+
+  // Thin out labels for long ranges
+  const skipLabels = dates.length > 30 ? Math.ceil(dates.length / 15) : 1;
+  const displayLabels = labels.map((l, i) => i % skipLabels === 0 ? l : '');
+
+  drawLineChart('score-chart', displayLabels, scores, '#3b82f6', '0-100');
+  drawLineChart('sleep-chart', displayLabels, sleepVals, '#818cf8');
+  drawLineChart('weight-chart', displayLabels, weightVals, '#f472b6');
+  drawBarChart('steps-chart', displayLabels, stepVals, '#f59e0b');
+  drawBarChart('cal-chart', displayLabels, calVals, '#34d399');
+}
+
+function drawLineChart(id, labels, data, color, yRange) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 320;
+  const H = 180;
+  canvas.width = W; canvas.height = H;
+  
+  const pad = { top: 16, right: 12, bottom: 32, left: 40 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = 'transparent';
+
+  const validData = data.filter(v => v !== null);
+  if (validData.length === 0) return;
+
+  const minV = yRange === '0-100' ? 0 : Math.min(...validData) * 0.95;
+  const maxV = yRange === '0-100' ? 100 : Math.max(...validData) * 1.05;
+  const range = maxV - minV || 1;
+
+  const toX = i => pad.left + (i / (labels.length - 1 || 1)) * cw;
+  const toY = v => pad.top + ch - ((v - minV) / range) * ch;
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
+  }
+
+  // Labels Y
+  ctx.fillStyle = '#6b7a94';
+  ctx.font = '10px DM Sans, sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = maxV - (range / 4) * i;
+    const y = pad.top + (ch / 4) * i;
+    ctx.fillText(Math.round(v), pad.left - 4, y + 4);
+  }
+
+  // Labels X
+  ctx.textAlign = 'center';
+  labels.forEach((l, i) => {
+    if (!l) return;
+    const x = toX(i);
+    ctx.fillText(l, x, H - 8);
+  });
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+  grad.addColorStop(0, color + '40');
+  grad.addColorStop(1, color + '00');
+
+  // Draw path
+  let started = false;
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    if (v === null) { started = false; return; }
+    const x = toX(i), y = toY(v);
+    if (!started) { ctx.moveTo(x, y); started = true; }
+    else ctx.lineTo(x, y);
+  });
+  const pathForFill = new Path2D(ctx.toString ? ctx.toString() : '');
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // Dots
+  ctx.fillStyle = color;
+  data.forEach((v, i) => {
+    if (v === null) return;
+    ctx.beginPath();
+    ctx.arc(toX(i), toY(v), 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawBarChart(id, labels, data, color) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 320;
+  const H = 180;
+  canvas.width = W; canvas.height = H;
+
+  const pad = { top: 16, right: 12, bottom: 32, left: 40 };
+  const cw = W - pad.left - pad.right;
+  const ch = H - pad.top - pad.bottom;
+  ctx.clearRect(0, 0, W, H);
+
+  const validData = data.filter(v => v !== null);
+  if (validData.length === 0) return;
+
+  const maxV = Math.max(...validData) * 1.1 || 1;
+  const barW = Math.max(2, (cw / data.length) - 2);
+
+  ctx.fillStyle = '#6b7a94';
+  ctx.font = '10px DM Sans, sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = (maxV / 4) * (4 - i);
+    const y = pad.top + (ch / 4) * i;
+    ctx.fillText(Math.round(v), pad.left - 4, y + 4);
+  }
+
+  ctx.textAlign = 'center';
+  labels.forEach((l, i) => {
+    if (!l) return;
+    ctx.fillStyle = '#6b7a94';
+    ctx.fillText(l, pad.left + (i / (data.length - 1 || 1)) * cw, H - 8);
+  });
+
+  data.forEach((v, i) => {
+    if (v === null) return;
+    const x = pad.left + (i / (data.length - 1 || 1)) * cw - barW / 2;
+    const barH = (v / maxV) * ch;
+    const y = pad.top + ch - barH;
+    ctx.fillStyle = color + 'cc';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x, y, barW, barH, 2);
+    else ctx.rect(x, y, barW, barH);
+    ctx.fill();
+  });
+}
+
+// ============================================================
+// SETTINGS PAGE
+// ============================================================
+function loadSettingsPage() {
+  const p = getProfile();
+  const settings = getSettings();
+  if (p) {
+    document.getElementById('set-name').value = p.name || '';
+    document.getElementById('set-birthday').value = p.birthday || '';
+    document.getElementById('set-height').value = p.height || '';
+    document.getElementById('set-sex').value = p.sex || 'male';
+    if (p.birthday) {
+      document.getElementById('profile-age-display').textContent = `Age: ${getAge(p.birthday)} years old`;
+    }
+  }
+  document.getElementById('set-cal-goal').value = settings.calGoal || 2000;
+  document.getElementById('set-step-goal').value = settings.stepGoal || 10000;
+  document.getElementById('set-sleep-goal').value = settings.sleepGoal || 8;
+  document.getElementById('set-water-goal').value = settings.waterGoal || 8;
+  document.getElementById('set-target-weight').value = settings.targetWeight || '';
+
+  // OneDrive status
+  const odEl = document.getElementById('onedrive-status-card');
+  if (odEl) {
+    if (oneDriveEnabled && msalAccount) {
+      odEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div class="sync-dot synced" style="width:10px;height:10px;"></div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Connected to OneDrive</div>
+            <div class="text-xs text-muted">${msalAccount.username || msalAccount.name || 'Microsoft Account'}</div>
+          </div>
+        </div>
+        <div class="text-xs text-muted">Data saved to: OneDrive / ${ONEDRIVE_FOLDER} / ${ONEDRIVE_FILE}</div>
+        <button class="btn btn-secondary btn-sm mt-3" onclick="saveToOneDrive().then(()=>showToast('Synced to OneDrive ✓'))">🔄 Sync Now</button>`;
+    } else {
+      odEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div class="sync-dot" style="width:10px;height:10px;background:var(--text-dim);"></div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Local Storage Only</div>
+            <div class="text-xs text-muted">Data is saved on this device only</div>
+          </div>
+        </div>
+        <div class="text-xs text-muted" style="margin-bottom:10px;">To enable OneDrive sync, sign out and sign in with your Microsoft account. You'll need to add your Azure App Client ID to the MSAL_CONFIG at the top of the script.</div>
+        <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/quickstart-register-app" target="_blank" class="btn btn-secondary btn-sm">📖 Setup Guide</a>`;
+    }
+  }
+
+  // Notifications
+  renderNotifPermissionRow();
+  renderReminderToggles();
+
+  // Export date defaults
+  const pid = state.currentProfile;
+  const allDates = Object.keys(state.data[pid] || {}).sort();
+  if (allDates.length) {
+    const fromEl = document.getElementById('export-from');
+    const toEl   = document.getElementById('export-to');
+    if (fromEl && !fromEl.value) fromEl.value = allDates[0];
+    if (toEl   && !toEl.value)   toEl.value   = allDates[allDates.length - 1];
+  }
+
+  // Weight sliders
+  renderWeightSliders();
+
+  // All profiles
+  const allEl = document.getElementById('all-profiles-list');
+  allEl.innerHTML = state.profiles.map(p => `
+    <div class="flex-between" style="padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="profile-avatar" style="background:${p.color};width:32px;height:32px;font-size:13px;">${p.name[0]}</div>
+        <div>
+          <div style="font-weight:500;">${p.name}</div>
+          <div class="text-xs text-muted">${p.birthday ? getAge(p.birthday) + ' yrs' : ''} ${p.height ? '· ' + heightDisplay(p.height) : ''}</div>
+        </div>
+      </div>
+      ${state.profiles.length > 1 ? `<button class="btn btn-sm btn-danger" onclick="deleteProfile('${p.id}')">Delete</button>` : ''}
+    </div>`).join('');
+}
+
+function renderWeightSliders() {
+  const w = state.scoreWeights;
+  const keys = ['sleep','food','exercise','weight'];
+  const labels = { sleep:'😴 Sleep', food:'🥗 Food', exercise:'🏋️ Exercise', weight:'⚖️ Body' };
+  document.getElementById('weight-sliders').innerHTML = keys.map(k => `
+    <div style="margin-bottom:14px;">
+      <div class="flex-between" style="margin-bottom:6px;">
+        <span style="font-size:13px;">${labels[k]}</span>
+        <span style="font-size:13px;font-weight:600;color:var(--accent);" id="w-val-${k}">${w[k]}%</span>
+      </div>
+      <input type="range" min="0" max="100" value="${w[k]}" style="width:100%;accent-color:var(--accent);" 
+        oninput="updateWeightSlider('${k}',this.value)" id="w-slider-${k}">
+    </div>`).join('');
+  updateWeightTotal();
+}
+
+function updateWeightSlider(key, val) {
+  state.scoreWeights[key] = parseInt(val);
+  document.getElementById('w-val-' + key).textContent = val + '%';
+  updateWeightTotal();
+}
+
+function updateWeightTotal() {
+  const total = Object.values(state.scoreWeights).reduce((a, b) => a + b, 0);
+  const el = document.getElementById('weight-total');
+  el.textContent = `Total: ${total}% ${total === 100 ? '✓' : '(must equal 100%)'}`;
+  el.style.color = total === 100 ? 'var(--success)' : 'var(--danger)';
+}
+
+function saveWeights() {
+  const total = Object.values(state.scoreWeights).reduce((a, b) => a + b, 0);
+  if (total !== 100) { showToast('Weights must total 100%'); return; }
+  saveToStorage();
+  showToast('Score weights saved ✓');
+}
+
+function saveProfileSettings() {
+  const p = getProfile();
+  if (!p) return;
+  p.name = document.getElementById('set-name').value.trim() || p.name;
+  p.birthday = document.getElementById('set-birthday').value;
+  p.height = parseFloat(document.getElementById('set-height').value) || null;
+  p.sex = document.getElementById('set-sex').value;
+  saveToStorage();
+  updateTopbarProfile();
+  if (p.birthday) document.getElementById('profile-age-display').textContent = `Age: ${getAge(p.birthday)} years old`;
+  showToast('Profile saved ✓');
+}
+
+function saveGoalSettings() {
+  const settings = state.settings[state.currentProfile] || {};
+  settings.calGoal = parseInt(document.getElementById('set-cal-goal').value) || 2000;
+  settings.stepGoal = parseInt(document.getElementById('set-step-goal').value) || 10000;
+  settings.sleepGoal = parseFloat(document.getElementById('set-sleep-goal').value) || 8;
+  settings.waterGoal = parseInt(document.getElementById('set-water-goal').value) || 8;
+  settings.targetWeight = parseFloat(document.getElementById('set-target-weight').value) || null;
+  state.settings[state.currentProfile] = settings;
+  saveToStorage();
+  showToast('Goals saved ✓');
+}
+
+function deleteProfile(id) {
+  if (!confirm('Delete this profile and all its data?')) return;
+  state.profiles = state.profiles.filter(p => p.id !== id);
+  delete state.data[id];
+  delete state.settings[id];
+  delete state.savedMeals[id];
+  saveToStorage();
+  loadSettingsPage();
+  showToast('Profile deleted');
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = '1';
+  t.style.transform = 'translateX(-50%) translateY(0)';
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(20px)';
+  }, 2200);
+}
+
+// ============================================================
+// SCREENSHOT IMPORT — AI-powered via Claude Vision
+// ============================================================
+let screenshotImportTarget = null; // 'sleep' | 'exercise' | 'weight'
+let screenshotParsedData = null;
+
+function openScreenshotImport(target) {
+  screenshotImportTarget = target;
+  screenshotParsedData = null;
+  // Reset modal
+  document.getElementById('screenshot-preview').style.display = 'none';
+  document.getElementById('screenshot-status').style.display = 'none';
+  document.getElementById('screenshot-result').style.display = 'none';
+  document.getElementById('screenshot-apply-btn').style.display = 'none';
+  document.getElementById('screenshot-drop-zone').style.display = 'block';
+  document.getElementById('screenshot-file-input').value = '';
+
+  const hints = {
+    sleep: 'Upload your Sleeptracker or Apple Health sleep screenshot.',
+    exercise: 'Upload your Apple Fitness activity summary screenshot.',
+    weight: 'Upload your RENPHO or similar smart scale app screenshot.'
+  };
+  document.getElementById('screenshot-modal-title').textContent =
+    target === 'sleep' ? '📷 Import Sleep Screenshot' :
+    target === 'exercise' ? '📷 Import Exercise Screenshot' : '📷 Import Body Metrics Screenshot';
+  document.getElementById('screenshot-modal-hint').textContent = hints[target] || hints.sleep;
+  openModal('screenshot-import-modal');
+}
+
+function handleScreenshotDrop(e) {
+  e.preventDefault();
+  document.getElementById('screenshot-drop-zone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) handleScreenshotFile(file);
+}
+
+function handleScreenshotFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result.split(',')[1];
+    const mediaType = file.type;
+
+    // Show preview
+    document.getElementById('screenshot-img').src = e.target.result;
+    document.getElementById('screenshot-preview').style.display = 'block';
+    document.getElementById('screenshot-drop-zone').style.display = 'none';
+
+    // Show status
+    const statusEl = document.getElementById('screenshot-status');
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div class="spinner"></div><span>Reading screenshot with AI...</span></div>';
+
+    await parseScreenshotWithAI(base64, mediaType);
+  };
+  reader.readAsDataURL(file);
+}
+
+async function parseScreenshotWithAI(base64, mediaType) {
+  const statusEl = document.getElementById('screenshot-status');
+  const resultEl = document.getElementById('screenshot-result');
+
+  const prompts = {
+    sleep: `You are reading a sleep tracking app screenshot. Extract ONLY these values if visible and return ONLY valid JSON, no explanation:
+{
+  "totalH": hours part of total sleep (integer),
+  "totalM": minutes part of total sleep (integer),
+  "deepH": hours of deep sleep (integer),
+  "deepM": minutes of deep sleep (integer),
+  "lightH": hours of light sleep (integer),
+  "lightM": minutes of light sleep (integer),
+  "remH": hours of REM sleep (integer),
+  "remM": minutes of REM sleep (integer),
+  "awakeH": hours awake (integer),
+  "awakeM": minutes awake (integer),
+  "wakeups": number of wake-ups (integer),
+  "hr": average heart rate bpm (integer),
+  "breath": breath rate per minute (number),
+  "efficiency": sleep efficiency percent (integer),
+  "fellAsleep": fell asleep time in HH:MM 24hr format (string),
+  "qualityScore": overall sleep quality score shown by the app (integer 0-100)
+}
+Return null for any field not found. Return only the JSON object.`,
+
+    exercise: `You are reading an Apple Fitness or activity app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:
+{
+  "steps": step count (integer),
+  "standHours": stand hours (integer),
+  "activeCal": active/move calories burned (integer),
+  "totalCal": total calories (integer),
+  "distance": distance in miles (number),
+  "flights": flights climbed (integer)
+}
+Return null for any field not found. Return only the JSON object.`,
+
+    weight: `You are reading a RENPHO or body composition scale app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:
+{
+  "weight": weight in lbs (number),
+  "bf": body fat percent (number),
+  "vf": visceral fat level (number),
+  "mm": muscle mass in lbs (number),
+  "sm": skeletal muscle percent (number),
+  "subf": subcutaneous fat percent (number),
+  "water": body water percent (number),
+  "bone": bone mass in lbs (number),
+  "protein": protein percent (number),
+  "bmr": basal metabolic rate in kcal (integer),
+  "metage": metabolic age (integer)
+}
+Return null for any field not found. Return only the JSON object.`
+  };
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'text', text: prompts[screenshotImportTarget] || prompts.sleep }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const text = data.content?.map(c => c.text || '').join('') || '';
+    
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No data found in screenshot');
+    screenshotParsedData = JSON.parse(jsonMatch[0]);
+
+    // Show results
+    statusEl.innerHTML = '<div style="color:var(--success);font-weight:600;">✓ Screenshot read successfully!</div>';
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = renderParsedResults(screenshotParsedData, screenshotImportTarget);
+    document.getElementById('screenshot-apply-btn').style.display = 'block';
+
+  } catch (err) {
+    console.error('Screenshot parse error:', err);
+    statusEl.innerHTML = `<div style="color:var(--danger);">⚠️ Could not read screenshot. Try a clearer image.<br><small style="opacity:0.7">${err.message}</small></div>`;
+  }
+}
+
+function renderParsedResults(data, target) {
+  const nonNull = Object.entries(data).filter(([k, v]) => v !== null && v !== undefined);
+  if (nonNull.length === 0) return '<div class="text-muted text-sm">No data fields detected in this screenshot.</div>';
+
+  const labels = {
+    // sleep
+    totalH:'Total Sleep hrs', totalM:'Total Sleep min', deepH:'Deep Sleep hrs', deepM:'Deep Sleep min',
+    lightH:'Light Sleep hrs', lightM:'Light Sleep min', remH:'REM hrs', remM:'REM min',
+    awakeH:'Awake hrs', awakeM:'Awake min', wakeups:'Wake-ups', hr:'Avg Heart Rate',
+    breath:'Breath Rate', efficiency:'Efficiency %', fellAsleep:'Fell Asleep',
+    // exercise
+    steps:'Steps', standHours:'Stand Hours', activeCal:'Active Calories', totalCal:'Total Calories',
+    distance:'Distance (mi)', flights:'Flights Climbed',
+    // weight
+    weight:'Weight (lbs)', bf:'Body Fat %', vf:'Visceral Fat', mm:'Muscle Mass (lbs)',
+    sm:'Skeletal Muscle %', subf:'Subcutaneous Fat %', water:'Body Water %',
+    bone:'Bone Mass (lbs)', protein:'Protein %', bmr:'BMR (kcal)', metage:'Metabolic Age'
+  };
+
+  return `<div class="card-subtitle" style="margin-bottom:8px;">Detected Values</div>` +
+    nonNull.map(([k, v]) =>
+      `<div class="flex-between" style="padding:4px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span class="text-muted">${labels[k] || k}</span>
+        <span style="font-weight:600;">${v}</span>
+      </div>`
+    ).join('');
+}
+
+function applyScreenshotData() {
+  if (!screenshotParsedData) return;
+  const d = screenshotParsedData;
+
+  if (screenshotImportTarget === 'sleep') {
+    if (d.qualityScore != null) {
+      document.getElementById('sleep-quality-input').value = d.qualityScore;
+      saveSleepQualityScore(d.qualityScore);
+    }
+    if (d.totalH != null) document.getElementById('s-total-h').value = d.totalH;
+    if (d.totalM != null) document.getElementById('s-total-m').value = d.totalM;
+    if (d.deepH != null) document.getElementById('s-deep-h').value = d.deepH;
+    if (d.deepM != null) document.getElementById('s-deep-m').value = d.deepM;
+    if (d.lightH != null) document.getElementById('s-light-h').value = d.lightH;
+    if (d.lightM != null) document.getElementById('s-light-m').value = d.lightM;
+    if (d.remH != null) document.getElementById('s-rem-h').value = d.remH;
+    if (d.remM != null) document.getElementById('s-rem-m').value = d.remM;
+    if (d.awakeH != null) document.getElementById('s-awake-h').value = d.awakeH;
+    if (d.awakeM != null) document.getElementById('s-awake-m').value = d.awakeM;
+    if (d.wakeups != null) document.getElementById('s-wakeups').value = d.wakeups;
+    if (d.hr != null) document.getElementById('s-hr').value = d.hr;
+    if (d.breath != null) document.getElementById('s-breath').value = d.breath;
+    if (d.efficiency != null) document.getElementById('s-efficiency').value = d.efficiency;
+    if (d.fellAsleep) document.getElementById('s-fellasleep').value = d.fellAsleep;
+    updateSleepScore();
+  } else if (screenshotImportTarget === 'exercise') {
+    if (d.steps != null) document.getElementById('e-steps').value = d.steps;
+    if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
+    if (d.activeCal != null) document.getElementById('e-active-cal').value = d.activeCal;
+    if (d.totalCal != null) document.getElementById('e-total-cal').value = d.totalCal;
+    if (d.distance != null) document.getElementById('e-distance').value = d.distance;
+    if (d.flights != null) document.getElementById('e-flights').value = d.flights;
+  } else if (screenshotImportTarget === 'weight') {
+    const map = { weight:'w-weight', bf:'w-bf', vf:'w-vf', mm:'w-mm', sm:'w-sm',
+      subf:'w-subf', water:'w-water', bone:'w-bone', protein:'w-protein', bmr:'w-bmr', metage:'w-metage' };
+    Object.entries(map).forEach(([key, id]) => {
+      if (d[key] != null) document.getElementById(id).value = d[key];
+    });
+  }
+
+  closeModal('screenshot-import-modal');
+  showToast('✓ Form filled from screenshot! Review and save.');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('load', () => {
+  initMSAL();
+  updateDateDisplays();
+  // Check reminders every minute
+  checkReminders();
+  setInterval(checkReminders, 60000);
+});
+
+// Re-render charts and check reminders when tab becomes visible
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    refreshCurrentPage();
+    checkReminders();
+  }
+});
+</script>
+</body></html>
