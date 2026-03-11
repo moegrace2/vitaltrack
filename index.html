@@ -703,7 +703,7 @@ let currentRange = '7d';
 const SUPABASE_URL  = 'https://bhcwkaigwydcwhhbdplo.supabase.co';   // e.g. https://xxxx.supabase.co
 const SUPABASE_ANON = 'sb_publishable_wWVs26dEfUClg8OR0V0csA_HDfii7TW';
 
-let supabase = null;
+let supabaseClient = null;
 let supabaseEnabled = false;
 
 // A stable device ID stored locally — acts as the record key in Supabase
@@ -729,14 +729,14 @@ function initSupabase() {
       console.warn('Supabase not configured — running in local-only mode');
       return;
     }
-    supabase = client(SUPABASE_URL, SUPABASE_ANON);
+    supabaseClient = client(SUPABASE_URL, SUPABASE_ANON);
     supabaseEnabled = true;
   } catch(e) { console.error('Supabase init error', e); }
 }
 
 // ---- Supabase read / write ----
 async function saveToSupabase() {
-  if (!supabase || !supabaseEnabled) return false;
+  if (!supabaseClient || !supabaseEnabled) return false;
   setSyncStatus('pending');
   try {
     const payload = {
@@ -744,7 +744,7 @@ async function saveToSupabase() {
       settings: state.settings, savedMeals: state.savedMeals,
       scoreWeights: state.scoreWeights
     };
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('vitaltrack')
       .upsert({ device_id: getDeviceId(), data: payload, updated_at: new Date().toISOString() });
     if (error) throw error;
@@ -754,9 +754,9 @@ async function saveToSupabase() {
 }
 
 async function loadFromSupabase() {
-  if (!supabase || !supabaseEnabled) return false;
+  if (!supabaseClient || !supabaseEnabled) return false;
   try {
-    const { data: row, error } = await supabase
+    const { data: row, error } = await supabaseClient
       .from('vitaltrack')
       .select('data')
       .eq('device_id', getDeviceId())
