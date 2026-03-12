@@ -304,10 +304,16 @@
           <button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button>
         </div>
         <div id="dash-grid">
-          <!-- Left col: score + quick btns -->
-          <div>
-            <div class="card">
-              <div class="score-display">
+	  <!-- Left col: score + quick btns -->
+	  <div>
+		<div class="card">
+		  <div style="display:flex;gap:6px;margin-bottom:12px;">
+			<button class="range-btn active" onclick="setDashRange('today',this)">Today</button>
+			<button class="range-btn" onclick="setDashRange('7d',this)">7-Day Avg</button>
+			<button class="range-btn" onclick="setDashRange('30d',this)">30-Day Avg</button>
+		  </div>
+		  <div id="dash-range-label" class="text-xs text-muted" style="text-align:center;margin-bottom:8px;display:none;"></div>
+		  <div class="score-display">
                 <div class="score-ring-wrap">
                   <svg viewBox="0 0 160 160"><circle cx="80" cy="80" r="68" fill="none" stroke="var(--surface3)" stroke-width="10"/><circle id="score-arc" cx="80" cy="80" r="68" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="427" stroke-dashoffset="427" style="transition:stroke-dashoffset 1s ease;"/></svg>
                   <div class="score-ring-center"><div class="score-number" id="dash-score">--</div><div class="score-label">Daily Score</div></div>
@@ -389,25 +395,23 @@
                 <div class="form-group"><label class="form-label">Breath Rate (rpm)</label><input type="number" class="form-input" id="s-breath" placeholder="19" step="0.1"></div>
               </div>
               <div class="form-group"><label class="form-label">Sleep Efficiency %</label><input type="number" class="form-input" id="s-efficiency" placeholder="96" min="0" max="100"></div>
+              <div class="form-group">
+                <label class="form-label">Sleep Quality Score (from app)</label>
+                <input type="number" class="form-input" id="sleep-quality-input" placeholder="e.g. 82" min="0" max="100" oninput="saveSleepQualityScore(this.value)" style="font-size:22px;text-align:center;font-family:'DM Serif Display',serif;">
+                <div class="text-xs text-muted mt-2">Enter score from your sleep app</div>
+              </div>
               <button class="btn btn-primary btn-full" onclick="saveSleep()">Save Sleep Data</button>
             </div>
           </div>
           <div>
-            <!-- Dual score display -->
-            <div class="card">
-              <div class="card-subtitle">Sleep Quality Score (from app)</div>
-              <div class="form-group" style="margin-bottom:0;">
-                <input type="number" class="form-input" id="sleep-quality-input" placeholder="e.g. 82" min="0" max="100" oninput="saveSleepQualityScore(this.value)" style="font-size:28px;text-align:center;font-family:'DM Serif Display',serif;">
-              </div>
-              <div class="text-xs text-muted mt-2" style="text-align:center;">Enter or import from your sleep app</div>
-            </div>
             <div class="card" style="text-align:center;">
-              <div class="card-subtitle">VitalTrack Sleep Score</div>
+              <div class="card-subtitle">Sleep Quality Score (from app)</div>
               <div class="score-number" id="sleep-score-display" style="font-size:64px;">--</div>
               <div id="sleep-score-breakdown" class="text-sm text-muted mt-2"></div>
             </div>
           </div>
         </div>
+        <div class="card" id="sleep-summary-card" style="margin-top:16px;"></div>
       </div>
 
       <!-- FOOD -->
@@ -459,7 +463,7 @@
               </div>
               <div class="form-row">
                 <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="e-active-cal" placeholder="414" min="0"></div>
-                <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="e-total-cal" placeholder="1783" min="0"></div>
+                <div class="form-group"><label class="form-label">Exercise (mins)</label><input type="number" class="form-input" id="e-total-cal" placeholder="30" min="0"></div>
               </div>
               <div class="form-row">
                 <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="e-distance" placeholder="2.38" step="0.01" min="0"></div>
@@ -607,15 +611,30 @@
 
 <!-- MODALS -->
 <div class="modal-overlay" id="add-session-modal">
-  <div class="modal"><div class="modal-handle"></div><div class="modal-title" id="session-modal-title">Add Exercise Session</div>
+  <div class="modal"><div class="modal-handle"></div>
+    <div class="flex-between" style="margin-bottom:16px;">
+      <div class="modal-title" id="session-modal-title" style="margin-bottom:0;">Add Exercise Session</div>
+      <button class="btn btn-sm btn-secondary" onclick="openSessionScreenshot()" style="gap:6px;">📷 Import</button>
+    </div>
+    <input type="file" id="sess-screenshot-input" accept="image/*" style="display:none" onchange="handleSessionScreenshot(this.files[0])">
+    <div id="sess-screenshot-status" style="display:none;" class="card-sm" style="margin-bottom:12px;"></div>
     <div class="form-group"><label class="form-label">Workout Type</label><input type="text" class="form-input" id="sess-type" placeholder="Elliptical, Running, Lifting..."></div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Duration (min)</label><input type="number" class="form-input" id="sess-mins" placeholder="45" min="1"></div>
-      <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
+    <div class="form-group">
+      <label class="form-label">Duration</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" class="form-input" id="sess-mins" placeholder="4" min="0" style="flex:1;">
+        <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
+        <input type="number" class="form-input" id="sess-secs" placeholder="30" min="0" max="59" style="flex:1;">
+        <span class="text-muted" style="font-size:13px;white-space:nowrap;">sec</span>
+      </div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
       <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46" min="0"></div>
+    </div>
+    <div class="form-row">
       <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="sess-total-cal" placeholder="55" min="0"></div>
+      <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="sess-distance" placeholder="0.5" step="0.01" min="0"></div>
     </div>
     <div class="form-group"><label class="form-label">Workouts / Sets Done</label><input type="text" class="form-input" id="sess-workouts" placeholder="e.g. Bench 3x8, Squat 4x6"></div>
     <input type="hidden" id="sess-edit-index" value="">
@@ -678,7 +697,7 @@ function getLocalDateString(date = new Date()) {
 let state = {
   isAuthenticated: false,
   currentProfile: null,
-  currentDate: new Date().toISOString().split('T')[0],
+  currentDate: getLocalDateString(),
   profiles: [],
   data: {},
   settings: {},
@@ -994,7 +1013,7 @@ function getExportDateRange() {
   const cur = new Date(start + 'T00:00:00');
   const fin = new Date(end + 'T00:00:00');
   while (cur <= fin) {
-    result.push(cur.toISOString().split('T')[0]);
+    result.push(getLocalDateString(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return result;
@@ -1234,13 +1253,13 @@ function refreshPage(page) {
 function changeDay(delta) {
   const d = new Date(state.currentDate + 'T00:00:00');
   d.setDate(d.getDate() + delta);
-  state.currentDate = d.toISOString().split('T')[0];
+  state.currentDate = getLocalDateString(d);
   refreshCurrentPage();
 }
 
 function updateDateDisplays() {
   const d = new Date(state.currentDate + 'T00:00:00');
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateString();
   let label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   if (state.currentDate === today) label = 'Today — ' + label;
   ['dash-date','sleep-date','food-date','exercise-date','weight-date'].forEach(id => {
@@ -1404,8 +1423,40 @@ function calcDailyScore(date) {
 // ============================================================
 // DASHBOARD
 // ============================================================
+let dashRange = 'today';
+function setDashRange(range, btn) {
+  dashRange = range;
+  document.querySelectorAll('#page-dashboard .range-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDashboard();
+}
+
+function calcAverageScores(days) {
+  const pid = state.currentProfile;
+  const profileData = state.data[pid] || {};
+  const today = state.currentDate;
+  const results = { sleep:[], food:[], exercise:[], weight:[], total:[] };
+  for (let i = 1; i <= days; i++) {
+    const d = new Date(today + 'T00:00:00');
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    const { total, scores } = calcDailyScore(dateStr);
+    if (total !== null) results.total.push(total);
+    ['sleep','food','exercise','weight'].forEach(k => { if (scores[k] !== null) results[k].push(scores[k]); });
+  }
+  const avg = arr => arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : null;
+  return {
+    total: avg(results.total),
+    scores: { sleep: avg(results.sleep), food: avg(results.food), exercise: avg(results.exercise), weight: avg(results.weight) }
+  };
+}
+
 function renderDashboard() {
-  const { total, scores } = calcDailyScore(state.currentDate);
+  function renderDashboard() {
+  const rangeDays = dashRange === '7d' ? 7 : dashRange === '30d' ? 30 : 0;
+  const { total, scores } = rangeDays > 0 ? calcAverageScores(rangeDays) : calcDailyScore(state.currentDate);
+  const rangeLbl = document.getElementById('dash-range-label');
+  if (rangeLbl) { rangeLbl.style.display = rangeDays > 0 ? '' : 'none'; rangeLbl.textContent = rangeDays > 0 ? `Average over last ${rangeDays} days` : ''; }
   const scoreEl = document.getElementById('dash-score');
   const arc = document.getElementById('score-arc');
 
@@ -1455,7 +1506,10 @@ function renderDashSummary() {
 
   let html = `<div class="card-title">Today's Snapshot</div>`;
 
-  if (s.total) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">😴 Sleep</span><span style="color:var(--sleep);font-weight:600">${s.total}h total · ${s.deep||'?'}h deep · ${s.rem||'?'}h REM</span></div>`;
+  if (s.total) {
+  function fmtHM(v) { if (!v) return '?'; const h=Math.floor(v),m=Math.round((v-h)*60); return m>0?`${h}h ${m}m`:`${h}h`; }
+  html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">😴 Sleep</span><span style="color:var(--sleep);font-weight:600">${fmtHM(s.total)} total · ${fmtHM(s.deep)} deep · ${fmtHM(s.rem)} REM</span></div>`;
+}
   
   const totalCals = (f.items||[]).reduce((a,i) => a+i.calories,0);
   if (totalCals > 0) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🥗 Calories</span><span style="color:var(--food);font-weight:600">${totalCals} / ${settings.calGoal||2000} kcal</span></div>`;
@@ -1522,6 +1576,7 @@ function loadSleepPage() {
   const sqEl = document.getElementById('sleep-quality-input');
   if (sqEl) sqEl.value = d.qualityScore != null ? d.qualityScore : '';
   updateSleepScore();
+  renderSleepSummary();
 }
 
 function saveSleep() {
@@ -1539,6 +1594,7 @@ function saveSleep() {
   };
   setDayData('sleep', d);
   updateSleepScore();
+  renderSleepSummary();
   showToast('Sleep saved ✓');
 }
 
@@ -1557,7 +1613,7 @@ function calcRollingBaseline() {
   for (let i = 1; i <= 30; i++) {
     const d = new Date(today + 'T00:00:00');
     d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(d);
     const sleepData = profileData[dateStr]?.sleep;
     if (sleepData && (sleepData.hr || sleepData.breath)) {
       entries.push(sleepData);
@@ -1619,10 +1675,12 @@ function updateSleepScore() {
   const vtScore = scoreSleepFormula(d);
 
   // VitalTrack score
+  const qualityScore = d.qualityScore != null ? d.qualityScore : null;
+  const displayScore = qualityScore !== null ? qualityScore : vtScore;
   const vtEl = document.getElementById('sleep-score-display');
   if (vtEl) {
-    vtEl.textContent = vtScore !== null ? vtScore : '--';
-    vtEl.style.color = vtScore !== null ? (vtScore >= 80 ? 'var(--success)' : vtScore >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
+    vtEl.textContent = displayScore !== null ? displayScore : '--';
+    vtEl.style.color = displayScore !== null ? (displayScore >= 80 ? 'var(--success)' : displayScore >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
   }
 
   // Breakdown text
@@ -1643,6 +1701,31 @@ function updateSleepScore() {
     }
     bd.textContent = parts.join(' · ');
   }
+}
+
+function renderSleepSummary() {
+  const el = document.getElementById('sleep-summary-card');
+  if (!el) return;
+  const d = getDayData('sleep');
+  function fmtHM(v) { if (!v) return null; const h=Math.floor(v),m=Math.round((v-h)*60); return m>0?`${h}h ${m}m`:`${h}h`; }
+  let html = '<div class="card-subtitle">Sleep Summary</div>';
+  const rows = [
+    ['Total Sleep', fmtHM(d.total)],
+    ['Deep Sleep', fmtHM(d.deep)],
+    ['Light Sleep', fmtHM(d.light)],
+    ['REM Sleep', fmtHM(d.rem)],
+    ['Awake Time', fmtHM(d.awake)],
+    ['Wake Ups', d.wakeups != null ? d.wakeups : null],
+    ['Fell Asleep', d.fellAsleep || null],
+    ['Avg Heart Rate', d.hr ? `${d.hr} bpm` : null],
+    ['Breath Rate', d.breath ? `${d.breath} rpm` : null],
+    ['Efficiency', d.efficiency ? `${d.efficiency}%` : null],
+    ['Quality Score', d.qualityScore != null ? d.qualityScore : null],
+  ];
+  const filled = rows.filter(r => r[1] !== null);
+  if (filled.length === 0) { html += '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No sleep data logged yet</div>'; }
+  else { filled.forEach(([label, val], i) => { html += `<div class="flex-between" style="padding:5px 0;${i<filled.length-1?'border-bottom:1px solid var(--border)':''}"><span class="text-muted">${label}</span><span style="font-weight:600">${val}</span></div>`; }); }
+  el.innerHTML = html;
 }
 
 // ============================================================
@@ -1947,9 +2030,10 @@ function showAddSessionModal() {
   document.getElementById('session-modal-title').textContent = 'Add Exercise Session';
   document.getElementById('sess-save-btn').textContent = 'Add Session';
   document.getElementById('sess-edit-index').value = '';
-  ['sess-type','sess-mins','sess-hr','sess-active-cal','sess-total-cal','sess-workouts'].forEach(id => {
-    document.getElementById(id).value = '';
+  ['sess-type','sess-mins','sess-secs','sess-hr','sess-active-cal','sess-total-cal','sess-distance','sess-workouts'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
+  const st = document.getElementById('sess-screenshot-status'); if (st) { st.style.display='none'; st.innerHTML=''; }
   openModal('add-session-modal');
 }
 
@@ -1962,9 +2046,11 @@ function editSession(i) {
   document.getElementById('sess-edit-index').value = i;
   document.getElementById('sess-type').value = s.type || '';
   document.getElementById('sess-mins').value = s.mins || '';
+  document.getElementById('sess-secs').value = s.secs || '';
   document.getElementById('sess-hr').value = s.hr || '';
   document.getElementById('sess-active-cal').value = s.activeCal || '';
   document.getElementById('sess-total-cal').value = s.totalCal || '';
+  document.getElementById('sess-distance').value = s.distance || '';
   document.getElementById('sess-workouts').value = s.workouts || '';
   openModal('add-session-modal');
 }
@@ -1972,9 +2058,11 @@ function editSession(i) {
 function saveSession() {
   const type = document.getElementById('sess-type').value.trim();
   const mins = parseInt(document.getElementById('sess-mins').value) || 0;
+  const secs = parseInt(document.getElementById('sess-secs').value) || 0;
   const hr = parseInt(document.getElementById('sess-hr').value) || null;
   const activeCal = parseInt(document.getElementById('sess-active-cal').value) || null;
   const totalCal = parseInt(document.getElementById('sess-total-cal').value) || null;
+  const distance = parseFloat(document.getElementById('sess-distance').value) || null;
   const workouts = document.getElementById('sess-workouts').value.trim();
   const editIdx = document.getElementById('sess-edit-index').value;
 
@@ -1983,7 +2071,7 @@ function saveSession() {
   const d = getDayData('exercise');
   if (!d.sessions) d.sessions = [];
 
-  const sessionObj = { type, mins, hr, activeCal, totalCal, workouts, id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() };
+  const sessionObj = { type, mins, secs, hr, activeCal, totalCal, distance, workouts, id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() };
 
   if (editIdx !== '') {
     d.sessions[parseInt(editIdx)] = sessionObj;
@@ -2009,7 +2097,7 @@ function renderSessionList() {
         <div class="flex-between" style="margin-bottom:4px;">
           <div style="font-weight:600;font-size:14px;">${s.type}</div>
           <div style="display:flex;align-items:center;gap:6px;">
-            <span style="color:var(--exercise);font-size:13px;font-weight:600;">${s.mins} min</span>
+            <span style="color:var(--exercise);font-size:13px;font-weight:600;">${s.secs > 0 ? `${s.mins}:${String(s.secs).padStart(2,'0')}` : `${s.mins} min`}</span>
             <button onclick="editSession(${i})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 8px;font-family:inherit;">Edit</button>
             <button onclick="removeSession(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">×</button>
           </div>
@@ -2021,6 +2109,49 @@ function renderSessionList() {
         </div>
         ${s.workouts ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;">${s.workouts}</div>` : ''}
       </div>`).join('');
+}
+
+function openSessionScreenshot() {
+  document.getElementById('sess-screenshot-input').click();
+}
+
+async function handleSessionScreenshot(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('sess-screenshot-status');
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> Reading screenshot...</div>';
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    const mediaType = file.type || 'image/jpeg';
+    const prompt = `You are reading an Apple Fitness or workout app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:
+{"type": string (workout name e.g. "Elliptical"), "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}
+Return null for any field not found. Return only the JSON object.`;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mediaType, data: base64 } }, { text: prompt }] }] })
+    });
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No data found');
+    const d = JSON.parse(jsonMatch[0]);
+    if (d.type) document.getElementById('sess-type').value = d.type;
+    if (d.mins != null) document.getElementById('sess-mins').value = d.mins;
+    if (d.secs != null) document.getElementById('sess-secs').value = d.secs;
+    if (d.hr != null) document.getElementById('sess-hr').value = d.hr;
+    if (d.activeCal != null) document.getElementById('sess-active-cal').value = d.activeCal;
+    if (d.totalCal != null) document.getElementById('sess-total-cal').value = d.totalCal;
+    if (d.distance != null) document.getElementById('sess-distance').value = d.distance;
+    statusEl.innerHTML = '<div style="color:var(--success);font-weight:600;">✓ Form filled from screenshot!</div>';
+  } catch(err) {
+    statusEl.innerHTML = `<div style="color:var(--danger);">⚠️ Could not read screenshot. Try a clearer image.</div>`;
+  }
 }
 
 function removeSession(i) {
@@ -2153,7 +2284,7 @@ function getDateRange() {
   const dates = [];
   const cur = new Date(from);
   while (cur <= to) {
-    dates.push(cur.toISOString().split('T')[0]);
+    dates.push(getLocalDateString(cur));
     cur.setDate(cur.getDate() + 1);
   }
   return dates;
@@ -2643,6 +2774,8 @@ function applyScreenshotData() {
     if (d.efficiency != null) document.getElementById('s-efficiency').value = d.efficiency;
     if (d.fellAsleep) document.getElementById('s-fellasleep').value = d.fellAsleep;
     updateSleepScore();
+    renderSleepSummary();
+  }
   } else if (screenshotImportTarget === 'exercise') {
     if (d.steps != null) document.getElementById('e-steps').value = d.steps;
     if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
