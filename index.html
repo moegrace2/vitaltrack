@@ -98,7 +98,17 @@
   .toggle input:checked + .toggle-slider:before { transform: translateX(20px); }
 
   /* === MODAL === */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .modal-overlay { 
+  position: fixed; 
+  inset: 0; 
+  background: rgba(0,0,0,0.7); 
+  z-index: 400; /* Increased from 200 to 400 */
+  display: flex; 
+  align-items: flex-end; 
+  opacity: 0; 
+  pointer-events: none; 
+  transition: opacity 0.25s; 
+}
   .modal-overlay.open { opacity: 1; pointer-events: all; }
   .modal { background: var(--surface); border-radius: 24px 24px 0 0; padding: 24px 20px; width: 100%; max-height: 85vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.32,0.72,0,1); }
   .modal-overlay.open .modal { transform: translateY(0); }
@@ -149,7 +159,18 @@
   canvas { max-width: 100%; }
 
   /* === AUTH === */
-  #auth-screen { position: fixed; inset: 0; background: var(--bg); z-index: 300; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center; }
+  #auth-screen { 
+  position: fixed; 
+  inset: 0; 
+  background: var(--bg); 
+  z-index: 500; /* Keep this the highest so nothing peaks through during login */
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  padding: 40px 24px; 
+  text-align: center; 
+}
   #auth-screen .logo { font-family: 'DM Serif Display', serif; font-size: 48px; margin-bottom: 8px; }
   #auth-screen .logo span { color: var(--accent); }
   #auth-screen .tagline { color: var(--text-muted); margin-bottom: 40px; }
@@ -724,7 +745,7 @@
   <div class="modal"><div class="modal-handle"></div><div class="modal-title">Add Profile</div>
     <div class="form-row"><div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="new-profile-name" placeholder="Jane"></div><div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="new-profile-birthday"></div></div>
     <div class="form-row"><div class="form-group"><label class="form-label">Height (in)</label><input type="number" class="form-input" id="new-profile-height" placeholder="65"></div><div class="form-group"><label class="form-label">Sex</label><select class="form-input" id="new-profile-sex"><option value="male">Male</option><option value="female">Female</option></select></div></div>
-    <div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-profile-modal')">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="createProfile()">Create Profile</button></div>
+    <div style="display:flex;gap:10px;"><button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-profile-modal'); showProfileSelector();">Cancel</button><button class="btn btn-primary" style="flex:1" onclick="createProfile()">Create Profile</button></div>
   </div>
 </div>
 
@@ -1251,6 +1272,10 @@ function showAddProfileModal(isFirst) {
   if (isFirst) {
     document.getElementById('add-profile-modal').querySelector('.modal-title').textContent = 'Create Your Profile';
   }
+  
+  // ADD THIS LINE: Hide the selector so it doesn't clutter the background
+  document.getElementById('profile-selector').classList.add('hidden');
+  
   openModal('add-profile-modal');
 }
 
