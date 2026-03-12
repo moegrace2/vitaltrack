@@ -261,55 +261,47 @@
   }
   
   /* This hides anything with the class "desktop-only" on mobile/tablets */
-@media (max-width: 899px) {
-  .desktop-only {
-    display: none !important;
-  }
-}
-
-/* Card hover/interaction smoothness */
+/* Card hover/interaction smoothness (Keep this outside the media query) */
 .card {
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+/* === MASTER MOBILE RULES === */
 @media (max-width: 899px) {
-  /* 1. The "Container Breakout": Allows cards to move between columns on mobile */
-  .desktop-two-col, #dash-grid {
+  /* 1. Hide desktop-only clutter */
+  .desktop-only { display: none !important; }
+
+  /* 2. Today Dashboard: Stack normally so Date stays at the very top */
+  #dash-grid {
     display: flex !important;
     flex-direction: column !important;
   }
-  .desktop-two-col > div, #dash-grid > div {
-    display: contents !important; 
+
+  /* 3. Sleep, Body, and Exercise: FLIP columns so Scores/Stats are on top */
+  .desktop-two-col {
+    display: flex !important;
+    flex-direction: column-reverse !important; 
   }
 
-  /* 2. SLEEP & BODY: Score (1) -> Summary (2) -> Form (3) */
-  #page-sleep .card:nth-of-type(1), #page-weight .card:nth-of-type(1) { order: 3; } /* The Form */
-  #page-sleep .card:nth-of-type(2), #page-weight .card:nth-of-type(2) { order: 1; } /* The Score */
-  #page-sleep .card:nth-of-type(3), #page-weight .card:nth-of-type(3) { order: 2; } /* The Summary */
+  /* 4. Exercise Sessions: Move the list of sessions above the daily entry form */
+  #page-exercise .desktop-two-col > div:first-child {
+    display: flex !important;
+    flex-direction: column-reverse !important;
+  }
 
-  /* 3. EXERCISE: Score (1) -> Summary (2) -> Sessions (3) -> Daily Activity (4) */
-  #page-exercise .card:nth-of-type(3) { order: 1; } /* Score */
-  #page-exercise .card:nth-of-type(4) { order: 2; } /* Summary/Stats */
-  #page-exercise .card:nth-of-type(2) { order: 3; } /* Sessions List */
-  #page-exercise .card:nth-of-type(1) { order: 4; } /* Daily Form */
-
-  /* 4. DASHBOARD (Today): Date -> Score -> Readiness -> Coach -> Habits */
-  .date-nav { order: 0; }
-  #page-dashboard .card:first-of-type { order: 1; } /* Daily Score Ring */
-  #dash-readiness { order: 2; }
-  #dash-smart-action { order: 3; }
-  #dash-habits { order: 4; }
-
-  /* 5. Mobile Polish: Hide desktop clutter and fix spacing */
-  .desktop-only { display: none !important; }
+  /* 5. Mobile Spacing & Polish */
+  .card {
+    padding: 16px; 
+    margin-bottom: 12px;
+  }
   
   #dash-readiness .card { 
-    margin-top: 0 !important; /* Removes the 76px desktop alignment gap */
+    margin-top: 0 !important; /* Removes the desktop alignment gap */
   }
-  
-  .card {
-    padding: 16px; /* Slightly tighter padding for mobile screens */
-    margin-bottom: 12px;
+
+  .date-nav {
+    width: 100%;
+    max-width: 320px;
   }
 }
 
