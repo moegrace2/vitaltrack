@@ -565,10 +565,10 @@
               <div class="form-row">
                 <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="e-active-cal" placeholder="414" min="0"></div>
                 <div class="form-group">
-				  <label class="form-label">Exercise (mins)</label>
-				  <input type="number" class="form-input" id="e-mins" placeholder="30" min="0">
-				</div>
-              <div class="form-row">
+                  <label class="form-label">Exercise (mins)</label>
+                  <input type="number" class="form-input" id="e-mins" placeholder="30" min="0">
+                </div>
+              </div> <div class="form-row">
                 <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="e-distance" placeholder="2.38" step="0.01" min="0"></div>
                 <div class="form-group"><label class="form-label">Flights Climbed</label><input type="number" class="form-input" id="e-flights" placeholder="0" min="0"></div>
               </div>
@@ -2663,7 +2663,7 @@ function saveSession() {
   const workoutInputs = document.querySelectorAll('.workout-row-input');
   const workoutsArray = Array.from(workoutInputs).map(inp => inp.value.trim()).filter(v => v !== '');
 
-  if (!type || mins === 0) { showToast('Enter workout type and duration'); return; }
+  if (!type || totalMins === 0) { showToast('Enter workout type and duration'); return; }
 
   const d = getDayData('exercise');
   if (!d.sessions) d.sessions = [];
@@ -2954,7 +2954,6 @@ function drawLineChart(id, labels, data, color, yRange) {
   const ch = H - pad.top - pad.bottom;
 
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = 'transparent';
 
   const validData = data.filter(v => v !== null);
   if (validData.length === 0) return;
@@ -2966,7 +2965,7 @@ function drawLineChart(id, labels, data, color, yRange) {
   const toX = i => pad.left + (i / (labels.length - 1 || 1)) * cw;
   const toY = v => pad.top + ch - ((v - minV) / range) * ch;
 
-  // Grid
+  // 1. Draw Grid Lines
   ctx.strokeStyle = 'rgba(255,255,255,0.05)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
@@ -2974,44 +2973,39 @@ function drawLineChart(id, labels, data, color, yRange) {
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + cw, y); ctx.stroke();
   }
 
-  // Labels Y
+  // 2. Draw Y-Axis Labels (Numbers)
   ctx.fillStyle = '#6b7a94';
-  ctx.font = '600 10px "DM Sans", sans-serif'; // Using 12px for the larger canvas
+  ctx.font = '10px "DM Sans", sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = maxV - (range / 4) * i;
+    const y = pad.top + (ch / 4) * i;
+    ctx.fillText(Math.round(v), pad.left - 8, y + 4);
+  }
+
+  // 3. Draw X-Axis Labels (Dates)
   ctx.textAlign = 'center';
   labels.forEach((l, i) => {
-    const offset = radius + 25; // Pushed out slightly further for the 140 radius
-    let lx = centerX, ly = centerY;
-    if (i === 0) ly -= offset;
-    else if (i === 1) lx += offset;
-    else if (i === 2) ly += offset + 5;
-    else lx -= offset;
-    
-    ctx.fillStyle = colors[i];
-    ctx.fillText(l, lx, ly);
+    if (!l) return;
+    ctx.fillText(l, toX(i), H - 8);
   });
 
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
-  grad.addColorStop(0, color + '40');
-  grad.addColorStop(1, color + '00');
-
-  // Draw path
-  let started = false;
+  // 4. Draw the Data Line
   ctx.beginPath();
+  let started = false;
   data.forEach((v, i) => {
     if (v === null) { started = false; return; }
     const x = toX(i), y = toY(v);
     if (!started) { ctx.moveTo(x, y); started = true; }
     else ctx.lineTo(x, y);
   });
-  const pathForFill = new Path2D(ctx.toString ? ctx.toString() : '');
 
   ctx.strokeStyle = color;
   ctx.lineWidth = 2.5;
   ctx.lineJoin = 'round';
   ctx.stroke();
 
-  // Dots
+  // 5. Draw Data Dots
   ctx.fillStyle = color;
   data.forEach((v, i) => {
     if (v === null) return;
