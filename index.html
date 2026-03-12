@@ -37,10 +37,16 @@
   #content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 90px; }
 
   /* === CARDS === */
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
-  .card-sm { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
-  .card-title { font-family: 'DM Serif Display', serif; font-size: 18px; margin-bottom: 16px; }
-  .card-subtitle { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 12px; }
+.card { 
+  background: rgba(17, 24, 39, 0.7); /* Translucent surface */
+  backdrop-filter: blur(12px);      /* The "Glass" blur effect */
+  -webkit-backdrop-filter: blur(12px); /* Support for Safari/iOS */
+  border: 1px solid rgba(255, 255, 255, 0.08); 
+  border-radius: var(--radius); 
+  padding: 20px; 
+  margin-bottom: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); /* Soft, deep shadow */
+}
 
   /* === SCORE RING === */
   .score-display { display: flex; align-items: center; justify-content: center; flex-direction: column; padding: 20px 0; }
@@ -243,6 +249,31 @@
 /* Optional: Subtle animation for cards appearing */
 .card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+@media (max-width: 899px) {
+  /* Sleep & Body Pages: Score -> Summary -> Form */
+  #page-sleep .desktop-two-col, 
+  #page-weight .desktop-two-col {
+    display: flex;
+    flex-direction: column;
+  }
+  #page-sleep .card:nth-child(1), 
+  #page-weight .card:nth-child(1) { order: 3; } /* Form at bottom */
+  #page-sleep div:nth-child(2) .card:nth-child(1),
+  #page-weight div:nth-child(2) .card:nth-child(1) { order: 1; } /* Score at top */
+  #page-sleep div:nth-child(2) .card:nth-child(2),
+  #page-weight div:nth-child(2) .card:nth-child(2) { order: 2; } /* Summary in middle */
+
+  /* Exercise Page: Score -> Summary -> Sessions -> Daily Activity */
+  #page-exercise .desktop-two-col {
+    display: flex;
+    flex-direction: column;
+  }
+  #page-exercise div:nth-child(2) .card:nth-child(1) { order: 1; } /* Score */
+  #page-exercise div:nth-child(2) .card:nth-child(2) { order: 2; } /* Summary */
+  #page-exercise div:nth-child(1) .card:nth-child(2) { order: 3; } /* Sessions */
+  #page-exercise div:nth-child(1) .card:nth-child(1) { order: 4; } /* Daily Activity Form */
 }
 
 </style>
@@ -653,14 +684,16 @@
     <div id="sess-screenshot-status" style="display:none;" class="card-sm" style="margin-bottom:12px;"></div>
     <div class="form-group"><label class="form-label">Workout Type</label><input type="text" class="form-input" id="sess-type" placeholder="Elliptical, Running, Lifting..."></div>
     <div class="form-group">
-      <label class="form-label">Duration</label>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <input type="number" class="form-input" id="sess-mins" placeholder="4" min="0" style="flex:1;">
-        <span class="text-muted" style="font-size:13px;white-space:nowrap;">min</span>
-        <input type="number" class="form-input" id="sess-secs" placeholder="30" min="0" max="59" style="flex:1;">
-        <span class="text-muted" style="font-size:13px;white-space:nowrap;">sec</span>
-      </div>
-    </div>
+	  <label class="form-label">Duration</label>
+	  <div style="display:flex;gap:8px;align-items:center;">
+		<input type="number" class="form-input" id="sess-hrs" placeholder="0" min="0" style="flex:1;">
+		<span class="text-muted" style="font-size:12px;">h</span>
+		<input type="number" class="form-input" id="sess-mins" placeholder="45" min="0" style="flex:1;">
+		<span class="text-muted" style="font-size:12px;">m</span>
+		<input type="number" class="form-input" id="sess-secs" placeholder="0" min="0" max="59" style="flex:1;">
+		<span class="text-muted" style="font-size:12px;">s</span>
+	  </div>
+	</div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
       <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46" min="0"></div>
@@ -2566,7 +2599,12 @@ function editSession(i) {
 
 function saveSession() {
   const type = document.getElementById('sess-type').value.trim();
+  
+  // Update these lines to include the new hours input
+  const hrs = parseInt(document.getElementById('sess-hrs').value) || 0;
   const mins = parseInt(document.getElementById('sess-mins').value) || 0;
+  const totalMins = (hrs * 60) + mins; // Convert everything to minutes for your database
+  
   const secs = parseInt(document.getElementById('sess-secs').value) || 0;
   const hr = parseInt(document.getElementById('sess-hr').value) || null;
   const activeCal = parseInt(document.getElementById('sess-active-cal').value) || null;
@@ -2647,7 +2685,9 @@ async function handleSessionScreenshot(file) {
     });
     
     const mediaType = file.type || 'image/jpeg';
-    const prompt = `You are reading an Apple Fitness or workout app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:{"type": string (workout name e.g. "Elliptical"), "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}Return null for any field not found. Return only the JSON object.`;
+    const prompt = `You are reading a workout screenshot (e.g. Apple Fitness). Extract these values and return ONLY valid JSON:
+	{"type": string, "hrs": integer, "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}
+	If the time is "1:22:05", hrs is 1, mins is 22, secs is 5. Return null for missing fields.`;
     
     // Call your secure Edge Function instead of Google directly
     const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
@@ -2662,6 +2702,10 @@ async function handleSessionScreenshot(file) {
     if (!jsonMatch) throw new Error('No data found');
     
     const d = JSON.parse(jsonMatch[0]);
+
+    // --- STEP C GOES HERE ---
+    if (d.hrs != null) document.getElementById('sess-hrs').value = d.hrs;
+    // ------------------------
 
     if (d.type) document.getElementById('sess-type').value = d.type;
     if (d.mins != null) document.getElementById('sess-mins').value = d.mins;
