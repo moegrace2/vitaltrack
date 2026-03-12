@@ -199,7 +199,7 @@
     .section-title { font-size: 24px; }
 
     /* Dashboard 2-col grid */
-    #dash-grid { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+    #dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
 
     /* Sleep/Exercise/Weight 2-col */
     .desktop-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
@@ -298,14 +298,16 @@
 
       <!-- DASHBOARD -->
       <div id="page-dashboard" class="page">
-        <div class="date-nav">
-          <button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button>
-          <div class="date-display" id="dash-date" onclick="openDatePicker()"></div>
-          <button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button>
-        </div>
-        <div id="dash-grid">
+        
+      <div id="dash-grid">
+		<div>
+			<div class="date-nav">
+			  <button class="date-nav-btn" onclick="changeDay(-1)">&#8249;</button>
+			  <div class="date-display" id="dash-date" onclick="openDatePicker()"></div>
+			  <button class="date-nav-btn" onclick="changeDay(1)">&#8250;</button>
+			</div>
 	  <!-- Left col: score + quick btns -->
-	  <div>
+	  
 		<div class="card">
 		  <div style="display:flex;gap:6px;margin-bottom:12px;">
 			<button class="range-btn active" onclick="setDashRange('today',this)">Today</button>
@@ -321,16 +323,34 @@
               </div>
               <div class="cat-scores" id="cat-scores"></div>
             </div>
-            <div id="dash-quick-btns" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(129,140,248,0.15);color:var(--sleep);border:1px solid rgba(129,140,248,0.2);" onclick="navTo('sleep')">😴 Sleep</button>
-              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(52,211,153,0.15);color:var(--food);border:1px solid rgba(52,211,153,0.2);" onclick="navTo('food')">🥗 Food</button>
-              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(245,158,11,0.15);color:var(--exercise);border:1px solid rgba(245,158,11,0.2);" onclick="navTo('exercise')">🏋️ Exercise</button>
-              <button class="btn btn-sm" style="flex:1;min-width:120px;background:rgba(244,114,182,0.15);color:var(--weight);border:1px solid rgba(244,114,182,0.2);" onclick="navTo('weight')">⚖️ Body</button>
+                        
+            <div id="dash-smart-action"></div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+              
+              <div class="card" style="padding:16px; margin-bottom:0;">
+                <div class="card-subtitle" style="margin-bottom:12px;">Balance</div>
+                <div style="display:flex; justify-content:center;">
+                  <canvas id="radarChart" width="300" height="300" style="max-width:100%; height:auto;"></canvas>
+                </div>
+              </div>
+
+              <div class="card" style="padding:16px; margin-bottom:0;">
+                <div class="card-subtitle" style="margin-bottom:8px;">Energy</div>
+                <div id="circadian-status" style="font-size:11px; color:var(--text-muted); margin-bottom:12px; min-height:34px; line-height:1.3;"></div>
+                <canvas id="circadianChart" width="300" height="150" style="max-width:100%; height:auto;"></canvas>
+              </div>
+
             </div>
+            
           </div>
           <!-- Right col: summary -->
           <div>
+            <div id="dash-readiness"></div>
+            
             <div class="card" id="dash-summary"></div>
+            
+            <div id="dash-habits"></div>
           </div>
         </div>
       </div>
@@ -409,9 +429,9 @@
               <div class="score-number" id="sleep-score-display" style="font-size:64px;">--</div>
               <div id="sleep-score-breakdown" class="text-sm text-muted mt-2"></div>
             </div>
+            <div class="card" id="sleep-summary-card"></div>
           </div>
         </div>
-        <div class="card" id="sleep-summary-card" style="margin-top:16px;"></div>
       </div>
 
       <!-- FOOD -->
@@ -632,11 +652,15 @@
       <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
       <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46" min="0"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="sess-total-cal" placeholder="55" min="0"></div>
-      <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="sess-distance" placeholder="0.5" step="0.01" min="0"></div>
+    <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="sess-total-cal" placeholder="55" min="0"></div>
+    
+    <div class="form-group">
+      <div class="flex-between" style="margin-bottom:8px;">
+        <label class="form-label" style="margin-bottom:0;">Workouts / Sets Done</label>
+        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="addWorkoutRow()">+ Add Row</button>
+      </div>
+      <div id="sess-workouts-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
-    <div class="form-group"><label class="form-label">Workouts / Sets Done</label><input type="text" class="form-input" id="sess-workouts" placeholder="e.g. Bench 3x8, Squat 4x6"></div>
     <input type="hidden" id="sess-edit-index" value="">
     <div style="display:flex;gap:10px;">
       <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-session-modal')">Cancel</button>
@@ -691,6 +715,15 @@ function getLocalDateString(date = new Date()) {
   return new Date(date.getTime() - tzOffset).toISOString().split('T')[0];
 }
 
+// Helper to format 24h time to 12h AM/PM
+function format12Hour(timeStr) {
+  if (!timeStr) return null;
+  let [h, m] = timeStr.split(':');
+  h = parseInt(h);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12; // Convert 0 to 12
+  return `${h}:${m} ${ampm}`;
+}
 // ============================================================
 // STATE
 // ============================================================
@@ -1450,13 +1483,323 @@ function calcAverageScores(days) {
     scores: { sleep: avg(results.sleep), food: avg(results.food), exercise: avg(results.exercise), weight: avg(results.weight) }
   };
 }
+function addDashWater() {
+  const d = getDayData('food');
+  d.water = (d.water || 0) + 1;
+  setDayData('food', d);
+  refreshCurrentPage(); // instantly updates the whole dashboard
+}
+
+function renderSmartAction() {
+  const el = document.getElementById('dash-smart-action');
+  if (!el) return;
+  
+  const pid = state.currentProfile;
+  const dayData = (state.data[pid] || {})[state.currentDate] || {};
+  const f = dayData.food || {};
+  const e = dayData.exercise || {};
+  const s = dayData.sleep || {};
+  const settings = getSettings();
+  
+  const water = f.water || 0;
+  const waterGoal = settings.waterGoal || 8;
+  
+  // The "Smart Coach" Logic
+  const hour = new Date().getHours();
+  let actionText = "You're all caught up! Keep up the great momentum.";
+  let actionBtn = "";
+  
+  if (hour < 11 && !s.total) {
+    actionText = "Good morning! ☀️ Log last night's sleep to generate your daily recovery baseline.";
+    actionBtn = `<button class="btn btn-sm btn-primary" onclick="navTo('sleep')">Log Sleep</button>`;
+  } else if (water < (waterGoal / 2) && hour > 12 && hour < 20) {
+    actionText = "You're falling behind on hydration. 💧 Drink a glass of water right now to maintain your energy.";
+    actionBtn = `<button class="btn btn-sm btn-primary" onclick="addDashWater()">+ Add Water</button>`;
+  } else if (hour >= 14 && hour <= 17 && (!e.steps || e.steps < 3000)) {
+    actionText = "Afternoon slump? 🚶 A 15-minute walk right now will boost your focus and close your rings.";
+    actionBtn = `<button class="btn btn-sm btn-primary" onclick="navTo('exercise')">Log Activity</button>`;
+  } else if (hour >= 18 && (!f.items || f.items.length === 0)) {
+    actionText = "It's getting late and you haven't logged any meals! 🥗 Log your food to track your macros.";
+    actionBtn = `<button class="btn btn-sm btn-primary" onclick="navTo('food')">Log Dinner</button>`;
+  } else if (hour >= 21) {
+    actionText = "Winding down. 🌙 Disconnect from screens soon to ensure high REM sleep tonight.";
+  }
+  
+  // Build the Water Tracker Visuals
+  let waterDots = '';
+  for(let i=0; i<waterGoal; i++) {
+    const isFilled = i < water;
+    waterDots += `<div style="width:24px;height:24px;border-radius:6px;background:${isFilled ? 'var(--accent2)' : 'var(--surface3)'};display:flex;align-items:center;justify-content:center;font-size:12px;">${isFilled ? '💧' : ''}</div>`;
+  }
+
+  el.innerHTML = `
+    <div class="card" style="border:1px solid rgba(6, 182, 212, 0.3); background: linear-gradient(180deg, var(--surface) 0%, rgba(6, 182, 212, 0.03) 100%);">
+      <div class="card-subtitle" style="color:var(--accent2); display:flex; justify-content:space-between; align-items:center;">
+        <span>💧 Daily Hydration</span>
+        <span style="font-size:14px; font-weight:700;">${water} / ${waterGoal}</span>
+      </div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+        ${waterDots}
+      </div>
+      <button class="btn btn-secondary btn-full btn-sm" onclick="addDashWater()" style="margin-bottom:18px;">+ Quick Add 1 Glass</button>
+      
+      <div class="card-subtitle" style="color:var(--accent); margin-bottom:8px;">🧠 Next Best Action</div>
+      <div style="background:var(--surface2); border-radius:8px; padding:14px; font-size:13px; line-height:1.5; color:var(--text); border:1px solid var(--border);">
+        ${actionText}
+        ${actionBtn ? `<div style="margin-top:12px;">${actionBtn}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+// --- PHASE 2: Readiness Battery ---
+function renderReadiness() {
+  const el = document.getElementById('dash-readiness');
+  if (!el) return;
+  
+  const pid = state.currentProfile;
+  const today = state.currentDate;
+  const y = new Date(today + 'T00:00:00');
+  y.setDate(y.getDate() - 1);
+  const yesterday = getLocalDateString(y);
+  
+  const yesterdayData = (state.data[pid] || {})[yesterday] || {};
+  const todayData = (state.data[pid] || {})[today] || {};
+  
+  const sleepScore = scoreSleep(todayData.sleep) || null; 
+  const exerciseScore = scoreExercise(yesterdayData.exercise) || 0; 
+  
+  let readiness = '--';
+  let color = 'var(--text-muted)';
+  let msg = 'Log last night\'s sleep to calculate your daily readiness.';
+
+  if (sleepScore !== null) {
+    readiness = Math.round(50 + (sleepScore * 0.5) - (exerciseScore * 0.2));
+    readiness = Math.max(0, Math.min(100, readiness));
+    
+    if (readiness >= 80) { color = 'var(--success)'; msg = 'Fully Charged. Prime day to push your limits.'; }
+    else if (readiness >= 50) { color = 'var(--exercise)'; msg = 'Moderate Energy. Balance activity with recovery today.'; }
+    else { color = 'var(--danger)'; msg = 'Depleted. Prioritize rest and hydration today.'; }
+  }
+
+  // Calculate the width of the battery fill (max width 28px)
+  const fillWidth = readiness !== '--' ? Math.round((readiness / 100) * 28) : 0;
+
+  el.innerHTML = `
+    <div class="card" style="background: linear-gradient(135deg, var(--surface2) 0%, rgba(255,255,255,0.02) 100%); border-left: 4px solid ${color};">
+      <div class="flex-between">
+        <div style="padding-right:16px;">
+          <div class="card-subtitle" style="margin-bottom:4px; color:var(--text);">Daily Readiness</div>
+          <div style="font-size:13px; color:var(--text-muted); line-height:1.4;">${msg}</div>
+        </div>
+        <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end;">
+          <div style="font-size:32px; font-family:'DM Serif Display',serif; color:${color}; line-height:1;">${readiness}${readiness !== '--' ? '%' : ''}</div>
+          
+          <svg width="42" height="20" style="margin-top:8px; filter: drop-shadow(0 0 4px ${readiness !== '--' ? color : 'transparent'});">
+            <rect x="1" y="1" width="36" height="18" rx="4" fill="none" stroke="var(--text-dim)" stroke-width="2" />
+            <rect x="38" y="6" width="3" height="8" rx="1" fill="var(--text-dim)" />
+            <rect x="5" y="5" width="${fillWidth}" height="10" rx="1" fill="${color}" style="transition: width 1s ease-out;" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// --- PHASE 2: Micro-Habits ---
+const DEFAULT_HABITS = ['💊 Take Vitamins/Supplements', '🧘‍♂️ 10 Min Stretch or Walk', '📖 Read 15 Pages', '🚫 Fast Food Free'];
+
+function toggleHabit(idx) {
+  const d = getDayData('habits'); // Fetches or creates the habit save object
+  d[idx] = !d[idx]; // Flip between true and false
+  setDayData('habits', d);
+  renderHabits();
+}
+
+function renderHabits() {
+  const el = document.getElementById('dash-habits');
+  if (!el) return;
+  
+  const habits = getDayData('habits');
+  let html = `<div class="card"><div class="card-subtitle">Daily Non-Negotiables</div><div style="display:flex; flex-direction:column; gap:8px;">`;
+  
+  DEFAULT_HABITS.forEach((h, i) => {
+    const isDone = habits[i];
+    // FIXED: Moved the semicolon outside of the ${} template expression
+    html += `
+      <div class="flex-between" style="padding:12px 14px; background:var(--surface2); border-radius:8px; cursor:pointer; border:1px solid ${isDone ? 'var(--success)' : 'var(--border)'}; transition:all 0.2s;" onclick="toggleHabit(${i})">
+        <span style="font-size:14px; font-weight:500; ${isDone ? 'text-decoration:line-through; opacity:0.5; color:var(--success);' : ''}">${h}</span>
+        <div style="width:22px; height:22px; border-radius:6px; border:2px solid ${isDone ? 'var(--success)' : 'var(--text-muted)'}; background:${isDone ? 'var(--success)' : 'transparent'}; display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+          ${isDone ? '<span style="color:#fff; font-size:14px; font-weight:bold;">✓</span>' : ''}
+        </div>
+      </div>
+    `;
+  });
+  
+  html += `</div></div>`;
+  el.innerHTML = html;
+}
+
+function renderRadarChart() {
+  const canvas = document.getElementById('radarChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  
+  const pid = state.currentProfile;
+  const dayData = (state.data[pid] || {})[state.currentDate] || {};
+  const scores = [
+    scoreSleep(dayData.sleep) || 0,
+    scoreFood(dayData.food) || 0,
+    scoreExercise(dayData.exercise) || 0,
+    scoreWeight(dayData.weight, getProfile()) || 0
+  ];
+  
+  const labels = ['SLEEP', 'FOOD', 'EXERCISE', 'BODY'];
+  // Hard-coded hex colors because Canvas cannot read var(--...)
+  const colors = ['#818cf8', '#34d399', '#f59e0b', '#f472b6']; 
+  const accentColor = '#3b82f6';
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const radius = 100;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. Background Web
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 4; i++) {
+    const r = (radius / 4) * i;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY - r);
+    ctx.lineTo(centerX + r, centerY);
+    ctx.lineTo(centerX, centerY + r);
+    ctx.lineTo(centerX - r, centerY);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  // 2. Axis
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - radius); ctx.lineTo(centerX, centerY + radius);
+  ctx.moveTo(centerX - radius, centerY); ctx.lineTo(centerX + radius, centerY);
+  ctx.stroke();
+
+  // 3. User Data Shape
+  const points = scores.map((s, i) => {
+    const val = (s / 100) * radius;
+    if (i === 0) return { x: centerX, y: centerY - val }; 
+    if (i === 1) return { x: centerX + val, y: centerY }; 
+    if (i === 2) return { x: centerX, y: centerY + val }; 
+    return { x: centerX - val, y: centerY };            
+  });
+
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.closePath();
+
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.2)';
+  ctx.fill();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = accentColor;
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  // 4. Labels
+  ctx.font = '600 10px "DM Sans", sans-serif';
+  ctx.textAlign = 'center';
+  labels.forEach((l, i) => {
+    const offset = radius + 20;
+    let lx = centerX, ly = centerY;
+    if (i === 0) ly -= offset;
+    else if (i === 1) lx += offset;
+    else if (i === 2) ly += offset + 5;
+    else lx -= offset;
+    ctx.fillStyle = colors[i];
+    ctx.fillText(l, lx, ly);
+  });
+}
+
+function renderCircadianCurve() {
+  const canvas = document.getElementById('circadianChart');
+  const statusEl = document.getElementById('circadian-status');
+  if (!canvas || !statusEl) return;
+  const ctx = canvas.getContext('2d');
+
+  const pid = state.currentProfile;
+  const dayData = (state.data[pid] || {})[state.currentDate] || {};
+  const s = dayData.sleep || {};
+  const accentColor = '#3b82f6';
+  
+  let wakeHour = 7; 
+  if (s.fellAsleep && s.total) {
+    const [h, m] = s.fellAsleep.split(':').map(Number);
+    wakeHour = (h + s.total) % 24;
+  }
+
+  const now = new Date();
+  const currentHourDecimal = now.getHours() + (now.getMinutes() / 60);
+  const hoursSinceWake = (currentHourDecimal - wakeHour + 24) % 24;
+
+  const getEnergy = (h) => Math.sin((h - 1) * 0.5) * 0.4 + Math.sin((h - 4) * 0.2) * 0.3 + 0.5;
+
+  if (hoursSinceWake > 16) {
+    statusEl.innerHTML = "🌙 <b>Melatonin Window:</b> Your body is preparing for sleep.";
+  } else if (getEnergy(hoursSinceWake) > 0.7) {
+    statusEl.innerHTML = "⚡ <b>Peak Performance:</b> High alertness. Great for deep work.";
+  } else if (getEnergy(hoursSinceWake) < 0.4) {
+    statusEl.innerHTML = "☕ <b>Circadian Dip:</b> Energy is naturally lower. Take a break.";
+  } else {
+    statusEl.innerHTML = "📈 <b>Stable Energy:</b> Steady focus levels. Keep going.";
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const points = [];
+  for (let i = 0; i <= 16; i += 0.5) {
+		// Inside renderCircadianCurve, update the points loop:
+	points.push({ 
+	  x: (i / 16) * canvas.width, 
+	  y: canvas.height - (getEnergy(i) * canvas.height * 0.7) - 20 
+	});
+  }
+
+  ctx.beginPath();
+  ctx.strokeStyle = accentColor;
+  ctx.lineWidth = 3;
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = accentColor;
+  ctx.moveTo(points[0].x, points[0].y);
+  points.forEach(p => ctx.lineTo(p.x, p.y));
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+
+  if (hoursSinceWake <= 16) {
+    const dotX = (hoursSinceWake / 16) * canvas.width;
+    const dotY = canvas.height - (getEnergy(hoursSinceWake) * canvas.height * 0.8) - 10;
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, 7, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
 
 function renderDashboard() {
-  function renderDashboard() {
   const rangeDays = dashRange === '7d' ? 7 : dashRange === '30d' ? 30 : 0;
   const { total, scores } = rangeDays > 0 ? calcAverageScores(rangeDays) : calcDailyScore(state.currentDate);
+  
   const rangeLbl = document.getElementById('dash-range-label');
-  if (rangeLbl) { rangeLbl.style.display = rangeDays > 0 ? '' : 'none'; rangeLbl.textContent = rangeDays > 0 ? `Average over last ${rangeDays} days` : ''; }
+  if (rangeLbl) { 
+    rangeLbl.style.display = rangeDays > 0 ? '' : 'none'; 
+    rangeLbl.textContent = rangeDays > 0 ? `Average over last ${rangeDays} days` : ''; 
+  }
+  
   const scoreEl = document.getElementById('dash-score');
   const arc = document.getElementById('score-arc');
 
@@ -1479,6 +1822,7 @@ function renderDashboard() {
     { key:'exercise', label:'Exercise', color: 'var(--exercise)', icon:'🏋️' },
     { key:'weight', label:'Body', color: 'var(--weight)', icon:'⚖️' }
   ];
+  
   document.getElementById('cat-scores').innerHTML = cats.map(c => {
     const v = scores[c.key];
     const disp = v !== null ? v : '--';
@@ -1490,8 +1834,17 @@ function renderDashboard() {
     </div>`;
   }).join('');
 
-  // Summary
+ // 1. Render all the standard text cards immediately
   renderDashSummary();
+  renderSmartAction();
+  renderReadiness();
+  renderHabits();
+
+  // 2. Wait 50ms for the HTML to "exist" before drawing the Canvas charts
+  setTimeout(() => {
+    renderRadarChart();
+    renderCircadianCurve();
+  }, 50);
 }
 
 function renderDashSummary() {
@@ -1504,30 +1857,118 @@ function renderDashSummary() {
   const settings = getSettings();
   const profile = getProfile();
 
-  let html = `<div class="card-title">Today's Snapshot</div>`;
+  function fmtHM(v) { 
+    if (!v) return null; 
+    const h = Math.floor(v), m = Math.round((v-h)*60); 
+    return m > 0 ? `${h}h ${m}m` : `${h}h`; 
+  }
+
+  // --- PART 1: The Original "Today's Snapshot" Quick Overview ---
+  let html = `<div class="card"><div class="card-title">Today's Snapshot</div>`;
 
   if (s.total) {
-  function fmtHM(v) { if (!v) return '?'; const h=Math.floor(v),m=Math.round((v-h)*60); return m>0?`${h}h ${m}m`:`${h}h`; }
-  html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">😴 Sleep</span><span style="color:var(--sleep);font-weight:600">${fmtHM(s.total)} total · ${fmtHM(s.deep)} deep · ${fmtHM(s.rem)} REM</span></div>`;
-}
+    let sleepStr = `Total: ${fmtHM(s.total)}`;
+    if (s.deep) sleepStr += ` <span style="opacity:0.5; margin:0 2px;">·</span> Deep: ${fmtHM(s.deep)}`;
+    if (s.rem) sleepStr += ` <span style="opacity:0.5; margin:0 2px;">·</span> REM: ${fmtHM(s.rem)}`;
+    
+    html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)">
+      <span class="text-muted">😴 Sleep</span>
+      <span style="color:var(--sleep);font-weight:600;">${sleepStr}</span>
+    </div>`;
+  }
   
   const totalCals = (f.items||[]).reduce((a,i) => a+i.calories,0);
-  if (totalCals > 0) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🥗 Calories</span><span style="color:var(--food);font-weight:600">${totalCals} / ${settings.calGoal||2000} kcal</span></div>`;
+  if (totalCals > 0) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🥗 Calories</span><span style="color:var(--food);font-weight:600">${Math.round(totalCals)} / ${settings.calGoal||2000} kcal</span></div>`;
   
   if (e.steps) html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">🏃 Steps</span><span style="color:var(--exercise);font-weight:600">${e.steps.toLocaleString()} / ${(settings.stepGoal||10000).toLocaleString()}</span></div>`;
   
   if (w.weight) {
-    const p = getProfile();
     let bmi = '';
-    if (p && p.height) { const bmiVal = (w.weight / (p.height * p.height)) * 703; bmi = ` · BMI ${bmiVal.toFixed(1)}`; }
+    if (profile && profile.height) { const bmiVal = (w.weight / (profile.height * profile.height)) * 703; bmi = ` · BMI ${bmiVal.toFixed(1)}`; }
     html += `<div class="flex-between" style="padding:6px 0;border-bottom:1px solid var(--border)"><span class="text-muted">⚖️ Weight</span><span style="color:var(--weight);font-weight:600">${w.weight} lbs${bmi}</span></div>`;
   }
 
   if (!s.total && !totalCals && !e.steps && !w.weight) {
     html += `<div style="text-align:center;padding:20px;color:var(--text-muted)">No data logged yet today.<br><span style="font-size:13px">Use the buttons above to start logging.</span></div>`;
   }
+  
+  html += `</div>`; // Close the Snapshot card
 
-  document.getElementById('dash-summary').innerHTML = html;
+  // --- PART 2: The New Detailed Category Cards in a strict 2x2 Grid ---
+  // We use a mini injected style block to force a perfect 2-column grid on desktop
+  html += `
+    <style>
+      .dash-2x2-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+      @media (min-width: 900px) { .dash-2x2-grid { grid-template-columns: 1fr 1fr; } }
+    </style>
+    <div class="dash-2x2-grid">
+  `;
+
+  // Build card: Always forces 4 rows. Uses '--' if data is missing.
+  const buildCard = (title, color, rows) => {
+    let cardHtml = `<div class="card" style="margin-bottom:0; display:flex; flex-direction:column; height:100%;">
+                      <div class="card-subtitle" style="color:${color}">${title}</div>
+                      <div style="flex:1; display:flex; flex-direction:column; justify-content:space-between;">`;
+    
+    rows.forEach(([label, val, col], i) => {
+      const displayVal = (val !== null && val !== undefined && val !== '') ? val : '--';
+      const border = i < rows.length - 1 ? 'border-bottom:1px solid var(--border)' : '';
+      cardHtml += `<div class="flex-between" style="padding:8px 0;${border}"><span class="text-muted">${label}</span><span style="font-weight:600;${col?'color:'+col:''}">${displayVal}</span></div>`;
+    });
+    
+    return cardHtml + '</div></div>';
+  };
+
+  // 1. Sleep Details (4 rows)
+  html += buildCard('😴 Sleep', 'var(--sleep)', [
+    ['Fell Asleep', format12Hour(s.fellAsleep)],
+    ['Time Asleep', fmtHM(s.total)],
+    ['Awake Time', fmtHM(s.awake)],
+    ['Wake Ups', s.wakeups != null ? s.wakeups : null]
+  ]);
+
+  // 2. Food Details (4 rows)
+  const items = f.items || [];
+  const p = items.reduce((a,i) => a + (i.protein||0), 0);
+  const c = items.reduce((a,i) => a + (i.carbs||0), 0);
+  const fat = items.reduce((a,i) => a + (i.fat||0), 0);
+  html += buildCard('🥗 Nutrition', 'var(--food)', [
+    ['Calories', totalCals > 0 ? `${Math.round(totalCals)} / ${settings.calGoal||2000}` : null],
+    ['Macros', totalCals > 0 ? `P:${Math.round(p)}g C:${Math.round(c)}g F:${Math.round(fat)}g` : null],
+    ['Water Intake', f.water != null ? `${f.water} glasses` : null],
+    ['Meals Logged', items.length > 0 ? `${items.length} items` : null]
+  ]);
+
+  // 3. Exercise Details (4 rows)
+  html += buildCard('🏋️ Exercise', 'var(--exercise)', [
+    ['Exercise', e.totalCal ? `${e.totalCal} mins` : null],
+    ['Active Calories', e.activeCal ? `${e.activeCal} kcal` : null],
+    ['Steps', e.steps ? e.steps.toLocaleString() : null],
+    ['Distance', e.distance ? `${e.distance} mi` : null]
+  ]);
+
+  // 4. Body Details (4 rows)
+  let toGoal = null;
+  let goalColor = null;
+  if (w.weight && settings.targetWeight) {
+    const diff = w.weight - settings.targetWeight;
+    toGoal = diff > 0 ? `+${diff.toFixed(1)} lbs` : `${diff.toFixed(1)} lbs`;
+    goalColor = diff <= 0 ? 'var(--success)' : 'var(--danger)'; 
+  }
+  html += buildCard('⚖️ Body', 'var(--weight)', [
+    ['Weight', w.weight ? `${w.weight} lbs` : null],
+    ['Body Fat', w.bf ? `${w.bf}%` : null],
+    ['Visceral Fat', w.vf != null ? w.vf : null],
+    ['To Goal', toGoal, goalColor]
+  ]);
+
+  html += `</div>`; // Close the 2x2 grid container
+
+  const container = document.getElementById('dash-summary');
+  if (container) {
+    container.innerHTML = html;
+    container.className = ''; // Remove outer padding so cards align perfectly
+  }
 }
 
 // ============================================================
@@ -1591,7 +2032,9 @@ function saveSleep() {
     breath:     parseFloat(document.getElementById('s-breath')?.value) || null,
     efficiency: parseFloat(document.getElementById('s-efficiency')?.value) || null,
     fellAsleep: document.getElementById('s-fellasleep')?.value || null,
+    qualityScore: parseInt(document.getElementById('sleep-quality-input')?.value) || null
   };
+  
   setDayData('sleep', d);
   updateSleepScore();
   renderSleepSummary();
@@ -1673,17 +2116,16 @@ function scoreSleepFormula(d) {
 function updateSleepScore() {
   const d = getDayData('sleep');
   const vtScore = scoreSleepFormula(d);
-
-  // VitalTrack score
+  
   const qualityScore = d.qualityScore != null ? d.qualityScore : null;
   const displayScore = qualityScore !== null ? qualityScore : vtScore;
+
   const vtEl = document.getElementById('sleep-score-display');
   if (vtEl) {
     vtEl.textContent = displayScore !== null ? displayScore : '--';
     vtEl.style.color = displayScore !== null ? (displayScore >= 80 ? 'var(--success)' : displayScore >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
   }
 
-  // Breakdown text
   const bd = document.getElementById('sleep-score-breakdown');
   if (bd && d.total) {
     const baseline = calcRollingBaseline();
@@ -1693,12 +2135,17 @@ function updateSleepScore() {
     const tBed = tSleep + tAwake;
     const eff = tBed > 0 ? Math.round((tSleep / tBed) * 100) : null;
     let parts = [`${d.total.toFixed(1)}h vs ${goalHrs}h goal`];
-    if (eff !== null) parts.push(`${eff}% efficiency`);
+    
+    if (eff !== null) {
+      parts.push(`${eff}% efficiency`);
+    }
+    
     if (baseline) {
       parts.push(`baseline from ${baseline.count} nights`);
     } else {
       parts.push('3+ nights needed for vitals baseline');
     }
+    
     bd.textContent = parts.join(' · ');
   }
 }
@@ -1706,8 +2153,16 @@ function updateSleepScore() {
 function renderSleepSummary() {
   const el = document.getElementById('sleep-summary-card');
   if (!el) return;
+  
   const d = getDayData('sleep');
-  function fmtHM(v) { if (!v) return null; const h=Math.floor(v),m=Math.round((v-h)*60); return m>0?`${h}h ${m}m`:`${h}h`; }
+  
+  function fmtHM(v) { 
+    if (!v) return null; 
+    const h = Math.floor(v);
+    const m = Math.round((v - h) * 60); 
+    return m > 0 ? `${h}h ${m}m` : `${h}h`; 
+  }
+  
   let html = '<div class="card-subtitle">Sleep Summary</div>';
   const rows = [
     ['Total Sleep', fmtHM(d.total)],
@@ -1716,15 +2171,24 @@ function renderSleepSummary() {
     ['REM Sleep', fmtHM(d.rem)],
     ['Awake Time', fmtHM(d.awake)],
     ['Wake Ups', d.wakeups != null ? d.wakeups : null],
-    ['Fell Asleep', d.fellAsleep || null],
+    ['Fell Asleep', format12Hour(d.fellAsleep)],
     ['Avg Heart Rate', d.hr ? `${d.hr} bpm` : null],
     ['Breath Rate', d.breath ? `${d.breath} rpm` : null],
     ['Efficiency', d.efficiency ? `${d.efficiency}%` : null],
     ['Quality Score', d.qualityScore != null ? d.qualityScore : null],
   ];
+  
   const filled = rows.filter(r => r[1] !== null);
-  if (filled.length === 0) { html += '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No sleep data logged yet</div>'; }
-  else { filled.forEach(([label, val], i) => { html += `<div class="flex-between" style="padding:5px 0;${i<filled.length-1?'border-bottom:1px solid var(--border)':''}"><span class="text-muted">${label}</span><span style="font-weight:600">${val}</span></div>`; }); }
+  
+  if (filled.length === 0) { 
+    html += '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No sleep data logged yet</div>'; 
+  } else { 
+    filled.forEach(([label, val], i) => { 
+      const borderStyle = i < filled.length - 1 ? 'border-bottom:1px solid var(--border)' : '';
+      html += `<div class="flex-between" style="padding:5px 0;${borderStyle}"><span class="text-muted">${label}</span><span style="font-weight:600">${val}</span></div>`; 
+    }); 
+  }
+  
   el.innerHTML = html;
 }
 
@@ -2025,15 +2489,33 @@ function renderExerciseStats() {
   el.innerHTML = html;
 }
 
+function addWorkoutRow(val = '') {
+  const list = document.getElementById('sess-workouts-list');
+  const row = document.createElement('div');
+  row.style.display = 'flex';
+  row.style.gap = '8px';
+  row.innerHTML = `
+    <input type="text" class="form-input workout-row-input" placeholder="e.g. Bench 3x8" value="${val.replace(/"/g, '&quot;')}">
+    <button class="btn btn-secondary" style="padding:0;width:38px;height:42px;flex-shrink:0;font-size:18px;" onclick="this.parentElement.remove()">×</button>
+  `;
+  list.appendChild(row);
+}
+
 function showAddSessionModal() {
-  // Clear form for new session
   document.getElementById('session-modal-title').textContent = 'Add Exercise Session';
   document.getElementById('sess-save-btn').textContent = 'Add Session';
   document.getElementById('sess-edit-index').value = '';
-  ['sess-type','sess-mins','sess-secs','sess-hr','sess-active-cal','sess-total-cal','sess-distance','sess-workouts'].forEach(id => {
+  
+  ['sess-type','sess-mins','sess-secs','sess-hr','sess-active-cal','sess-total-cal'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  
   const st = document.getElementById('sess-screenshot-status'); if (st) { st.style.display='none'; st.innerHTML=''; }
+  
+  // Clear the list and add one empty row to start
+  document.getElementById('sess-workouts-list').innerHTML = '';
+  addWorkoutRow();
+  
   openModal('add-session-modal');
 }
 
@@ -2041,17 +2523,31 @@ function editSession(i) {
   const d = getDayData('exercise');
   const s = d.sessions[i];
   if (!s) return;
+  
   document.getElementById('session-modal-title').textContent = 'Edit Exercise Session';
   document.getElementById('sess-save-btn').textContent = 'Save Changes';
   document.getElementById('sess-edit-index').value = i;
+  
   document.getElementById('sess-type').value = s.type || '';
   document.getElementById('sess-mins').value = s.mins || '';
   document.getElementById('sess-secs').value = s.secs || '';
   document.getElementById('sess-hr').value = s.hr || '';
   document.getElementById('sess-active-cal').value = s.activeCal || '';
   document.getElementById('sess-total-cal').value = s.totalCal || '';
-  document.getElementById('sess-distance').value = s.distance || '';
-  document.getElementById('sess-workouts').value = s.workouts || '';
+  
+  // Load existing workouts into the dynamic rows
+  const list = document.getElementById('sess-workouts-list');
+  list.innerHTML = '';
+  
+  if (Array.isArray(s.workouts) && s.workouts.length > 0) {
+    s.workouts.forEach(w => addWorkoutRow(w));
+  } else if (typeof s.workouts === 'string' && s.workouts) {
+    // Legacy support for your old comma-separated strings
+    addWorkoutRow(s.workouts);
+  } else {
+    addWorkoutRow(); // Blank default
+  }
+  
   openModal('add-session-modal');
 }
 
@@ -2062,16 +2558,22 @@ function saveSession() {
   const hr = parseInt(document.getElementById('sess-hr').value) || null;
   const activeCal = parseInt(document.getElementById('sess-active-cal').value) || null;
   const totalCal = parseInt(document.getElementById('sess-total-cal').value) || null;
-  const distance = parseFloat(document.getElementById('sess-distance').value) || null;
-  const workouts = document.getElementById('sess-workouts').value.trim();
   const editIdx = document.getElementById('sess-edit-index').value;
+
+  // Gather all workout rows
+  const workoutInputs = document.querySelectorAll('.workout-row-input');
+  const workoutsArray = Array.from(workoutInputs).map(inp => inp.value.trim()).filter(v => v !== '');
 
   if (!type || mins === 0) { showToast('Enter workout type and duration'); return; }
 
   const d = getDayData('exercise');
   if (!d.sessions) d.sessions = [];
 
-  const sessionObj = { type, mins, secs, hr, activeCal, totalCal, distance, workouts, id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() };
+  const sessionObj = { 
+    type, mins, secs, hr, activeCal, totalCal, 
+    workouts: workoutsArray, // Now saved as an Array
+    id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() 
+  };
 
   if (editIdx !== '') {
     d.sessions[parseInt(editIdx)] = sessionObj;
@@ -2107,7 +2609,9 @@ function renderSessionList() {
           ${s.activeCal ? `<span class="text-xs text-muted">🔥 ${s.activeCal} active cal</span>` : ''}
           ${s.totalCal ? `<span class="text-xs text-muted">⚡ ${s.totalCal} total cal</span>` : ''}
         </div>
-        ${s.workouts ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;">${s.workouts}</div>` : ''}
+        ${Array.isArray(s.workouts) && s.workouts.length > 0 
+           ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;line-height:1.5;">${s.workouts.map(w => `• ${w}`).join('<br>')}</div>` 
+           : (typeof s.workouts === 'string' && s.workouts ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;">• ${s.workouts}</div>` : '')}
       </div>`).join('');
 }
 
@@ -2120,6 +2624,7 @@ async function handleSessionScreenshot(file) {
   const statusEl = document.getElementById('sess-screenshot-status');
   statusEl.style.display = 'block';
   statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> Reading screenshot...</div>';
+  
   try {
     const base64 = await new Promise((res, rej) => {
       const r = new FileReader();
@@ -2127,20 +2632,24 @@ async function handleSessionScreenshot(file) {
       r.onerror = rej;
       r.readAsDataURL(file);
     });
+    
     const mediaType = file.type || 'image/jpeg';
-    const prompt = `You are reading an Apple Fitness or workout app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:
-{"type": string (workout name e.g. "Elliptical"), "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}
-Return null for any field not found. Return only the JSON object.`;
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ inline_data: { mime_type: mediaType, data: base64 } }, { text: prompt }] }] })
+    const prompt = `You are reading an Apple Fitness or workout app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:{"type": string (workout name e.g. "Elliptical"), "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}Return null for any field not found. Return only the JSON object.`;
+    
+    // Call your secure Edge Function instead of Google directly
+    const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
+      body: { base64: base64, mediaType: mediaType, prompt: prompt }
     });
-    const data = await response.json();
+
+    if (error) throw new Error(error.message || 'Failed to reach proxy server');
+    if (data.error) throw new Error(data.error);
+
     const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No data found');
+    
     const d = JSON.parse(jsonMatch[0]);
+
     if (d.type) document.getElementById('sess-type').value = d.type;
     if (d.mins != null) document.getElementById('sess-mins').value = d.mins;
     if (d.secs != null) document.getElementById('sess-secs').value = d.secs;
@@ -2148,8 +2657,10 @@ Return null for any field not found. Return only the JSON object.`;
     if (d.activeCal != null) document.getElementById('sess-active-cal').value = d.activeCal;
     if (d.totalCal != null) document.getElementById('sess-total-cal').value = d.totalCal;
     if (d.distance != null) document.getElementById('sess-distance').value = d.distance;
+
     statusEl.innerHTML = '<div style="color:var(--success);font-weight:600;">✓ Form filled from screenshot!</div>';
   } catch(err) {
+    console.error(err);
     statusEl.innerHTML = `<div style="color:var(--danger);">⚠️ Could not read screenshot. Try a clearer image.</div>`;
   }
 }
@@ -2360,20 +2871,18 @@ function drawLineChart(id, labels, data, color, yRange) {
 
   // Labels Y
   ctx.fillStyle = '#6b7a94';
-  ctx.font = '10px DM Sans, sans-serif';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const v = maxV - (range / 4) * i;
-    const y = pad.top + (ch / 4) * i;
-    ctx.fillText(Math.round(v), pad.left - 4, y + 4);
-  }
-
-  // Labels X
+  ctx.font = '600 10px "DM Sans", sans-serif'; // Using 12px for the larger canvas
   ctx.textAlign = 'center';
   labels.forEach((l, i) => {
-    if (!l) return;
-    const x = toX(i);
-    ctx.fillText(l, x, H - 8);
+    const offset = radius + 25; // Pushed out slightly further for the 140 radius
+    let lx = centerX, ly = centerY;
+    if (i === 0) ly -= offset;
+    else if (i === 1) lx += offset;
+    else if (i === 2) ly += offset + 5;
+    else lx -= offset;
+    
+    ctx.fillStyle = colors[i];
+    ctx.fillText(l, lx, ly);
   });
 
   // Gradient fill
@@ -2427,7 +2936,7 @@ function drawBarChart(id, labels, data, color) {
   const barW = Math.max(2, (cw / data.length) - 2);
 
   ctx.fillStyle = '#6b7a94';
-  ctx.font = '10px DM Sans, sans-serif';
+  ctx.font = '600 10px "DM Sans", sans-serif';
   ctx.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
     const v = (maxV / 4) * (4 - i);
@@ -2773,9 +3282,10 @@ function applyScreenshotData() {
     if (d.breath != null) document.getElementById('s-breath').value = d.breath;
     if (d.efficiency != null) document.getElementById('s-efficiency').value = d.efficiency;
     if (d.fellAsleep) document.getElementById('s-fellasleep').value = d.fellAsleep;
+    
     updateSleepScore();
     renderSleepSummary();
-  }
+    
   } else if (screenshotImportTarget === 'exercise') {
     if (d.steps != null) document.getElementById('e-steps').value = d.steps;
     if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
@@ -2783,6 +3293,7 @@ function applyScreenshotData() {
     if (d.totalCal != null) document.getElementById('e-total-cal').value = d.totalCal;
     if (d.distance != null) document.getElementById('e-distance').value = d.distance;
     if (d.flights != null) document.getElementById('e-flights').value = d.flights;
+    
   } else if (screenshotImportTarget === 'weight') {
     const map = { weight:'w-weight', bf:'w-bf', vf:'w-vf', mm:'w-mm', sm:'w-sm',
       subf:'w-subf', water:'w-water', bone:'w-bone', protein:'w-protein', bmr:'w-bmr', metage:'w-metage' };
@@ -2831,4 +3342,5 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 </script>
-</body></html>
+</body>
+</html>
