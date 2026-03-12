@@ -2548,7 +2548,19 @@ async function parseScreenshotWithAI(base64, mediaType) {
       }
     });
 
-    if (error) throw new Error(error.message || 'Failed to reach proxy server');
+    if (error) {
+      let realErrorMessage = error.message;
+      // If Supabase hid the real error inside the 'context', extract it:
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const errorDetails = await error.context.json();
+          realErrorMessage = errorDetails.error || realErrorMessage;
+        } catch (e) {
+          console.error("Could not parse server error", e);
+        }
+      }
+      throw new Error("Server said: " + realErrorMessage);
+    }
     if (data.error) throw new Error(data.error);
 
     const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
