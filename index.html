@@ -564,8 +564,10 @@
               </div>
               <div class="form-row">
                 <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="e-active-cal" placeholder="414" min="0"></div>
-                <div class="form-group"><label class="form-label">Exercise (mins)</label><input type="number" class="form-input" id="e-total-cal" placeholder="30" min="0"></div>
-              </div>
+                <div class="form-group">
+				  <label class="form-label">Exercise (mins)</label>
+				  <input type="number" class="form-input" id="e-mins" placeholder="30" min="0">
+				</div>
               <div class="form-row">
                 <div class="form-group"><label class="form-label">Distance (mi)</label><input type="number" class="form-input" id="e-distance" placeholder="2.38" step="0.01" min="0"></div>
                 <div class="form-group"><label class="form-label">Flights Climbed</label><input type="number" class="form-input" id="e-flights" placeholder="0" min="0"></div>
@@ -2538,7 +2540,7 @@ function loadExercisePage() {
   document.getElementById('e-steps').value = d.steps || '';
   document.getElementById('e-stand').value = d.standHours || '';
   document.getElementById('e-active-cal').value = d.activeCal || '';
-  document.getElementById('e-total-cal').value = d.totalCal || '';
+  document.getElementById('e-mins').value = d.totalCal || '';
   document.getElementById('e-distance').value = d.distance || '';
   document.getElementById('e-flights').value = d.flights || '';
   renderSessionList();
@@ -2548,12 +2550,17 @@ function loadExercisePage() {
 
 function saveExerciseDaily() {
   const d = getDayData('exercise');
-  d.steps     = parseInt(document.getElementById('e-steps').value) || 0;
-  d.standHours= parseInt(document.getElementById('e-stand').value) || 0;
-  d.activeCal = parseInt(document.getElementById('e-active-cal').value) || null;
-  d.totalCal  = parseInt(document.getElementById('e-total-cal').value) || null;
-  d.distance  = parseFloat(document.getElementById('e-distance').value) || null;
-  d.flights   = parseInt(document.getElementById('e-flights').value) || null;
+  d.steps      = parseInt(document.getElementById('e-steps').value) || 0;
+  d.standHours = parseInt(document.getElementById('e-stand').value) || 0;
+  d.activeCal  = parseInt(document.getElementById('e-active-cal').value) || null;
+  
+  // This is the important part: Reading from the new 'e-mins' ID 
+  // but saving it into the 'totalCal' data key.
+  d.totalCal   = parseInt(document.getElementById('e-mins').value) || null;
+  
+  d.distance   = parseFloat(document.getElementById('e-distance').value) || null;
+  d.flights    = parseInt(document.getElementById('e-flights').value) || null;
+  
   setDayData('exercise', d);
   updateExerciseScore();
   renderExerciseStats();
@@ -2568,7 +2575,7 @@ function renderExerciseStats() {
   let html = '<div class="card-subtitle">Activity Summary</div>';
   if (d.steps) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Steps</span><span style="font-weight:600;color:var(--exercise)">${d.steps.toLocaleString()} / ${(settings.stepGoal||10000).toLocaleString()}</span></div>`;
   if (d.activeCal) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Active Calories</span><span style="font-weight:600">${d.activeCal} kcal</span></div>`;
-  if (d.totalCal) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Total Calories</span><span style="font-weight:600">${d.totalCal} kcal</span></div>`;
+  if (d.totalCal) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Exercise Time</span><span style="font-weight:600">${d.totalCal} mins</span></div>`;
   if (d.distance) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Distance</span><span style="font-weight:600">${d.distance} mi</span></div>`;
   if (d.standHours) html += `<div class="flex-between" style="padding:5px 0;border-bottom:1px solid var(--border)"><span class="text-muted">Stand Hours</span><span style="font-weight:600">${d.standHours} hrs</span></div>`;
   if (d.flights) html += `<div class="flex-between" style="padding:5px 0"><span class="text-muted">Flights Climbed</span><span style="font-weight:600">${d.flights}</span></div>`;
@@ -3395,7 +3402,7 @@ function applyScreenshotData() {
     if (d.totalCal != null) {
       // This splits "14/60" at the slash and takes the first part "14"
       const cleanMins = String(d.totalCal).split('/')[0].trim();
-      document.getElementById('e-total-cal').value = parseInt(cleanMins);
+      document.getElementById('e-mins').value = parseInt(cleanMins);
     }
     // ----------------------------------------
 
