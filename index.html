@@ -519,14 +519,25 @@
               <div class="text-xs text-muted mt-2">Tap glasses to log</div>
             </div>
             <div class="card">
-              <div class="flex-between" style="margin-bottom:12px;">
-                <div class="card-subtitle" style="margin-bottom:0;">Log Food</div>
-                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('food-camera-input').click()" style="gap:6px; color:var(--accent);">📷 Scan Label</button>
-                <input type="file" id="food-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleFoodLabelScan(this.files[0])">
-              </div>
-              <div class="form-group"><input type="text" class="form-input" id="food-search-input" placeholder="Search USDA database..." oninput="debounceSearch(this.value)"></div>
-              <div id="food-search-results" class="hidden"></div>
-              <div class="divider"></div>
+			  <div class="flex-between" style="margin-bottom:12px;">
+				<div class="card-subtitle" style="margin-bottom:0;">AI Quick Log</div>
+				<button class="btn btn-sm btn-secondary" onclick="document.getElementById('food-camera-input').click()" style="gap:6px; color:var(--accent);">📷 Scan Label</button>
+				<input type="file" id="food-camera-input" accept="image/*" style="display:none" onchange="handleFoodLabelScan(this.files[0])">
+			  </div>
+			  
+			  <div style="display:flex; gap:8px; margin-bottom:14px;">
+				<input type="text" class="form-input" id="ai-food-text" placeholder="e.g. 4 CFA chicken minis & med fries" onkeydown="if(event.key === 'Enter') logFoodFromText()">
+				<button class="btn btn-primary" onclick="logFoodFromText()">Log</button>
+			  </div>
+			  <div id="ai-food-status" class="text-sm mt-2 hidden" style="margin-bottom:12px;"></div>
+			  
+			  <div class="divider"></div>
+			  
+			  <div class="card-subtitle" style="margin-bottom:8px; font-size:12px;">Search USDA Database</div>
+			  <div class="form-group"><input type="text" class="form-input" id="food-search-input" placeholder="Search single foods..." oninput="debounceSearch(this.value)"></div>
+			  <div id="food-search-results" class="hidden"></div>
+			  
+			  <div class="divider"></div>
               <div class="flex-between" style="margin-bottom:10px;"><div class="card-subtitle" style="margin-bottom:0;">Saved Meals</div><button class="btn btn-sm btn-secondary" onclick="showSavedMeals()">View All</button></div>
               <div id="saved-meals-quick"></div>
             </div>
@@ -755,6 +766,31 @@
 <div class="modal-overlay" id="saved-meals-modal">
   <div class="modal"><div class="modal-handle"></div><div class="modal-title">Saved Meals</div><div id="saved-meals-list"></div><div class="text-sm text-muted mt-3" style="text-align:center;">Save meals while logging food to access them here</div></div>
 </div>
+
+<div class="modal-overlay" id="edit-food-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ Edit Food Entry</div>
+    <input type="hidden" id="edit-food-index">
+    <div class="form-group">
+      <label class="form-label">Name</label>
+      <input type="text" id="edit-food-name" class="form-input">
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Calories</label><input type="number" id="edit-food-cal" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Protein (g)</label><input type="number" id="edit-food-p" class="form-input"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Carbs (g)</label><input type="number" id="edit-food-c" class="form-input"></div>
+      <div class="form-group"><label class="form-label">Fat (g)</label><input type="number" id="edit-food-f" class="form-input"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-secondary" style="flex:1" onclick="closeModal('edit-food-modal')">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" onclick="saveEditedFood()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="add-profile-modal">
   <div class="modal"><div class="modal-handle"></div><div class="modal-title">Add Profile</div>
     <div class="form-row"><div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="new-profile-name" placeholder="Jane"></div><div class="form-group"><label class="form-label">Birthday</label><input type="date" class="form-input" id="new-profile-birthday"></div></div>
@@ -2428,18 +2464,22 @@ function renderFoodLog() {
       <div class="macro-bar"><div class="macro-p" style="width:${pp}%"></div><div class="macro-c" style="width:${cp}%"></div><div class="macro-f" style="width:${fp}%"></div></div>`;
   } else { macroEl.innerHTML = ''; }
 
-  // Food list
+  // Food list (Now with Edit and Save buttons)
   const listEl = document.getElementById('food-log-list');
   listEl.innerHTML = items.length === 0 ? '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No foods logged yet</div>' :
     items.map((f, i) => `
       <div class="food-item">
-        <div>
+        <div style="flex:1; padding-right:12px;">
           <div class="food-item-name">${f.name}</div>
           <div class="food-item-meta">${f.servingDesc || f.serving + ' serving'} · P:${Math.round(f.protein||0)}g C:${Math.round(f.carbs||0)}g F:${Math.round(f.fat||0)}g</div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:12px;">
           <div class="food-item-cal">${Math.round(f.calories)}</div>
-          <button onclick="removeFood(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;">×</button>
+          <div style="display:flex; gap:4px;">
+            <button onclick="saveLoggedFoodAsMeal(${i})" title="Save as Meal" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--accent);cursor:pointer;padding:4px 6px;font-size:12px;transition:0.2s;">⭐</button>
+            <button onclick="editLoggedFood(${i})" title="Edit Entry" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;padding:4px 6px;font-size:12px;transition:0.2s;">✏️</button>
+            <button onclick="removeFood(${i})" title="Delete" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;line-height:1;padding:0 4px;">×</button>
+          </div>
         </div>
       </div>`).join('');
 
@@ -2459,6 +2499,69 @@ function removeFood(i) {
   setDayData('food', d);
   renderFoodLog();
   updateFoodScore();
+}
+
+function saveLoggedFoodAsMeal(i) {
+  const d = getDayData('food');
+  const item = d.items[i];
+  if (!item) return;
+  const pid = state.currentProfile;
+  if (!state.savedMeals[pid]) state.savedMeals[pid] = [];
+
+  // We format this perfectly so the "Select Food" modal's math works next time you add it
+  const mealToSave = {
+    fdcId: 'saved_log_' + Date.now(),
+    name: item.name,
+    calories: item.calories,
+    protein: item.protein,
+    carbs: item.carbs,
+    fat: item.fat,
+    brandOwner: 'Saved Log',
+    serving: 100, // Forces the 100g math to perfectly equal 1 meal
+    servingUnit: 'meal'
+  };
+
+  state.savedMeals[pid].push(mealToSave);
+  saveToStorage();
+  renderSavedMealsQuick();
+  showToast('Saved to your Meals ✓');
+}
+
+function editLoggedFood(i) {
+  const d = getDayData('food');
+  const item = d.items[i];
+  if (!item) return;
+
+  // Populate the modal with current values
+  document.getElementById('edit-food-index').value = i;
+  document.getElementById('edit-food-name').value = item.name || '';
+  document.getElementById('edit-food-cal').value = Math.round(item.calories || 0);
+  document.getElementById('edit-food-p').value = Math.round(item.protein || 0);
+  document.getElementById('edit-food-c').value = Math.round(item.carbs || 0);
+  document.getElementById('edit-food-f').value = Math.round(item.fat || 0);
+
+  openModal('edit-food-modal');
+}
+
+function saveEditedFood() {
+  const i = parseInt(document.getElementById('edit-food-index').value);
+  if (isNaN(i)) return;
+
+  const d = getDayData('food');
+  if (!d.items || !d.items[i]) return;
+
+  // Update the item
+  d.items[i].name = document.getElementById('edit-food-name').value.trim();
+  d.items[i].calories = parseFloat(document.getElementById('edit-food-cal').value) || 0;
+  d.items[i].protein = parseFloat(document.getElementById('edit-food-p').value) || 0;
+  d.items[i].carbs = parseFloat(document.getElementById('edit-food-c').value) || 0;
+  d.items[i].fat = parseFloat(document.getElementById('edit-food-f').value) || 0;
+
+  setDayData('food', d);
+  closeModal('edit-food-modal');
+  renderFoodLog();
+  updateFoodScore();
+  showToast('Food updated ✓');
 }
 
 function debounceSearch(val) {
@@ -2553,7 +2656,8 @@ async function handleFoodLabelScan(file) {
       carbs: d.carbs || 0,
       fat: d.fat || 0,
       brandOwner: 'AI Scan',
-      serving: d.serving || 1,
+      // We force the serving size to 100 here so the modal math cancels out perfectly!
+      serving: 100, 
       servingUnit: d.servingUnit || 'serving'
     };
 
@@ -2568,6 +2672,93 @@ async function handleFoodLabelScan(file) {
   } finally {
     // Clear the camera input so you can scan again later
     document.getElementById('food-camera-input').value = '';
+  }
+}
+
+// --- AI TEXT MEAL LOGGER ---
+async function logFoodFromText() {
+  const inputEl = document.getElementById('ai-food-text');
+  const text = inputEl.value.trim();
+  if (!text) return;
+  
+  const statusEl = document.getElementById('ai-food-status');
+  statusEl.classList.remove('hidden');
+  statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--accent);"><div class="spinner"></div> Calculating macros...</div>';
+  
+  try {
+    const prompt = `IGNORE THE BLANK IMAGE. You are a world-class nutrition expert. The user ate the following meal: "${text}". 
+    Calculate the total estimated nutritional value for the ENTIRE meal combined. Factor in portion sizes and restaurant modifications if mentioned.
+    Return ONLY valid JSON: {"name": "Short descriptive summary of meal", "calories": number, "protein": number, "carbs": number, "fat": number, "serving": 1, "servingUnit": "meal"}
+    If a value isn't calculable, use 0. Return ONLY the JSON object.`;
+    
+    // --- THE MAGIC TRICK ---
+    // Generate a mathematically perfect 256x256 blank image on the fly
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 256, 256);
+    // Convert it to a pure base64 string
+    const generatedImage = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+    // -----------------------
+
+    const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
+      body: { 
+        base64: generatedImage, 
+        mediaType: 'image/jpeg', 
+        prompt: prompt 
+      }
+    });
+    
+    if (error) {
+      let realError = error.message;
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const errData = await error.context.json();
+          realError = errData.error || realError;
+        } catch(e) {}
+      }
+      throw new Error(realError);
+    }
+    
+    if (data.error) throw new Error(data.error);
+
+    const responseText = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No valid JSON returned from AI.');
+    
+    const d = JSON.parse(jsonMatch[0]);
+
+    // --- DIRECT INJECT (Bypasses the modal and the 100g math) ---
+    const item = {
+      name: d.name || text,
+      serving: 1,
+      servingDesc: "1 AI Estimate",
+      calories: d.calories || 0,
+      protein: d.protein || 0,
+      carbs: d.carbs || 0,
+      fat: d.fat || 0
+    };
+
+    // Save it straight to the database
+    const dayFood = getDayData('food');
+    if (!dayFood.items) dayFood.items = [];
+    dayFood.items.push(item);
+    setDayData('food', dayFood);
+
+    // Update the UI instantly
+    renderFoodLog();
+    updateFoodScore();
+
+    statusEl.classList.add('hidden');
+    inputEl.value = ''; 
+    showToast('Meal logged instantly ✓');
+    // -----------------------------------------------------------
+
+  } catch (e) {
+    console.error("AI Text Log Error:", e);
+    statusEl.innerHTML = `<span style="color:var(--danger)">⚠️ Failed: ${e.message}</span>`;
   }
 }
 
