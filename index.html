@@ -519,8 +519,12 @@
               <div class="text-xs text-muted mt-2">Tap glasses to log</div>
             </div>
             <div class="card">
-              <div class="card-subtitle">Search Food (USDA Database)</div>
-              <div class="form-group"><input type="text" class="form-input" id="food-search-input" placeholder="Search foods..." oninput="debounceSearch(this.value)"></div>
+              <div class="flex-between" style="margin-bottom:12px;">
+                <div class="card-subtitle" style="margin-bottom:0;">Log Food</div>
+                <button class="btn btn-sm btn-secondary" onclick="document.getElementById('food-camera-input').click()" style="gap:6px; color:var(--accent);">📷 Scan Label</button>
+                <input type="file" id="food-camera-input" accept="image/*" capture="environment" style="display:none" onchange="handleFoodLabelScan(this.files[0])">
+              </div>
+              <div class="form-group"><input type="text" class="form-input" id="food-search-input" placeholder="Search USDA database..." oninput="debounceSearch(this.value)"></div>
               <div id="food-search-results" class="hidden"></div>
               <div class="divider"></div>
               <div class="flex-between" style="margin-bottom:10px;"><div class="card-subtitle" style="margin-bottom:0;">Saved Meals</div><button class="btn btn-sm btn-secondary" onclick="showSavedMeals()">View All</button></div>
@@ -2494,6 +2498,76 @@ async function searchFood(query) {
     }).join('');
   } catch(e) {
     res.innerHTML = '<div class="search-result-item text-muted">Search unavailable. Check internet connection.</div>';
+  }
+}
+
+// --- AI NUTRITION LABEL SCANNER ---
+async function handleFoodLabelScan(file) {
+  if (!file) return;
+  const res = document.getElementById('food-search-results');
+  
+  // Show a loading spinner in the search box
+  res.classList.remove('hidden');
+  res.className = 'search-results';
+  res.innerHTML = `
+    <div class="search-result-item" style="text-align:center; padding:20px;">
+      <div class="spinner" style="margin:0 auto 10px auto;"></div>
+      <div style="font-weight:600; color:var(--accent);">Reading nutrition label...</div>
+      <div class="text-xs text-muted mt-2">This takes a few seconds</div>
+    </div>`;
+
+  try {
+    // 1. Convert image to Base64
+    const base64 = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+
+    // 2. The exact instructions for Gemini
+    const prompt = `You are a nutrition expert reading a food package or nutrition label. Extract these values per serving and return ONLY valid JSON:
+    {"name": "String (guess the food name or brand, or use 'Scanned Food')", "calories": number, "protein": number, "carbs": number, "fat": number, "serving": 1, "servingUnit": "String (e.g., serving, oz, bar, scoop)"}
+    If a value isn't visible, use 0. Return ONLY the JSON object.`;
+
+    // 3. Send to your Supabase Edge Function
+    const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
+      body: { base64: base64, mediaType: file.type || 'image/jpeg', prompt: prompt }
+    });
+
+    if (error) throw error;
+    if (data.error) throw new Error(data.error);
+
+    const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No data found');
+    
+    const d = JSON.parse(jsonMatch[0]);
+
+    // 4. Format it perfectly for your Add Food modal
+    const foodObj = {
+      fdcId: 'ai_' + Date.now(), 
+      name: d.name || 'Scanned Food',
+      calories: d.calories || 0,
+      protein: d.protein || 0,
+      carbs: d.carbs || 0,
+      fat: d.fat || 0,
+      brandOwner: 'AI Scan',
+      serving: d.serving || 1,
+      servingUnit: d.servingUnit || 'serving'
+    };
+
+    // 5. Hide the loading screen and open the modal!
+    res.classList.add('hidden');
+    selectFood(foodObj);
+    showToast('Label read successfully ✓');
+
+  } catch (err) {
+    console.error(err);
+    res.innerHTML = `<div class="search-result-item text-muted" style="color:var(--danger); text-align:center;">⚠️ Could not read label. Please make sure the text is clear.</div>`;
+  } finally {
+    // Clear the camera input so you can scan again later
+    document.getElementById('food-camera-input').value = '';
   }
 }
 
