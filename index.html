@@ -603,13 +603,21 @@
             </div>
           </div>
           <div>
+            <div class="card" style="text-align:center;">
+              <div class="card-subtitle">Nutrition Score</div>
+              <div class="score-number" id="food-score-display" style="font-size:64px;">--</div>
+              <div id="food-score-feedback" class="text-sm mt-3 hidden" style="text-align:left; background:var(--surface2); padding:12px; border-radius:8px; border:1px solid var(--border); line-height:1.4;"></div>
+            </div>
+
             <div class="card">
-              <div class="flex-between" style="margin-bottom:12px;"><div class="card-subtitle" style="margin-bottom:0;">Today's Log</div><div style="color:var(--food);font-weight:700;font-size:16px;" id="total-cals">0 kcal</div></div>
+              <div class="flex-between" style="margin-bottom:12px;">
+                <div class="card-subtitle" style="margin-bottom:0;">Today's Log</div>
+                <div style="color:var(--food);font-weight:700;font-size:16px;" id="total-cals">0 kcal</div>
+              </div>
               <div id="macro-summary" style="margin-bottom:12px;"></div>
               <div id="food-log-list"></div>
               <div id="food-goal-progress" class="mt-2"></div>
             </div>
-            <div class="card" style="text-align:center;"><div class="card-subtitle">Nutrition Score</div><div class="score-number" id="food-score-display" style="font-size:64px;">--</div></div>
           </div>
         </div>
       </div>
@@ -647,7 +655,11 @@
             </div>
           </div>
           <div>
-            <div class="card" style="text-align:center;"><div class="card-subtitle">Exercise Score</div><div class="score-number" id="exercise-score-display" style="font-size:64px;">--</div></div>
+            <div class="card" style="text-align:center;">
+              <div class="card-subtitle">Exercise Score</div>
+              <div class="score-number" id="exercise-score-display" style="font-size:64px;">--</div>
+              <div id="exercise-score-feedback" class="text-sm mt-3 hidden" style="text-align:left; background:var(--surface2); padding:12px; border-radius:8px; border:1px solid var(--border); line-height:1.4;"></div>
+            </div>
             <div class="card" id="exercise-stats-card"></div>
           </div>
         </div>
@@ -1566,6 +1578,12 @@ function getSettings() {
 // SCORING ENGINE
 // ============================================================
 function scoreSleep(d) {
+  if (!d) return null;
+  
+  // 1. If you manually entered a score from your app, use that exact number everywhere!
+  if (d.qualityScore != null) return d.qualityScore;
+  
+  // 2. If you leave that box blank, fall back to VitalTrack's internal math
   return scoreSleepFormula(d);
 }
 
@@ -1676,6 +1694,59 @@ function scoreFood(d) {
   return Math.max(0, Math.min(100, Math.round(score)));
 }
 
+function renderFoodFeedback() {
+  const el = document.getElementById('food-score-feedback');
+  if (!el) return;
+  const d = getDayData('food');
+  if (!d.items || d.items.length === 0) {
+    el.innerHTML = "Log your first meal or drink a glass of water to generate your score.";
+    el.classList.remove('hidden');
+    return;
+  }
+
+  let pace = 1.0;
+  const now = new Date();
+  if (state.currentDate === getLocalDateString(now)) {
+    const hrs = now.getHours() + (now.getMinutes() / 60);
+    pace = Math.max(0.05, Math.min(1.0, (hrs - 6) / 16));
+  }
+
+  const settings = getSettings();
+  const cals = d.items.reduce((a, f) => a + (f.calories||0), 0);
+  const prot = d.items.reduce((a, f) => a + (f.protein||0), 0);
+  const water = d.water || 0;
+
+  const calGoal = settings.calGoal || 2000;
+  const protGoal = settings.proteinGoal || 150;
+  const waterGoal = settings.waterGoal || 8;
+
+  let why = "Macros are perfectly on track for this time of day.";
+  let tip = "Keep up the great work!";
+
+  // Check Calories first (20% grace window)
+  if (cals > calGoal * pace * 1.2) {
+    why = "Calories are running high for this time of day.";
+    tip = "Focus on water and lean protein to stabilize your score.";
+  } else if (cals < calGoal * pace * 0.8) {
+    why = "You're under-eating for this time of day.";
+    tip = "Time for a balanced meal to catch up to the clock.";
+  }
+
+  // Find the easiest missing points
+  const waterDeficit = (waterGoal * pace) - water;
+  const protDeficit = (protGoal * pace) - prot;
+
+  if (waterDeficit >= 1) {
+    tip = `Drink ${Math.ceil(waterDeficit)} glass(es) of water right now to instantly boost your score.`;
+    if (why.includes("perfectly")) why = "You are dropping easy points on hydration.";
+  } else if (protDeficit > 10) {
+    tip = `Grab a high-protein snack. You are behind pace by ${Math.round(protDeficit)}g.`;
+  }
+
+  el.innerHTML = `<span style="color:var(--text-muted);"><b>Why:</b> ${why}</span><br><div style="margin-top:6px; color:var(--text);"><b>💡 Next Step:</b> <span style="color:var(--food);">${tip}</span></div>`;
+  el.classList.remove('hidden');
+}
+
 function scoreExercise(d) {
   if (!d) return null;
   const steps = d.steps || 0;
@@ -1711,6 +1782,56 @@ function scoreExercise(d) {
   score += Math.min(25, (stand / (standGoal * pace)) * 25);
 
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function renderExerciseFeedback() {
+  const el = document.getElementById('exercise-score-feedback');
+  if (!el) return;
+  const d = getDayData('exercise');
+  
+  const steps = d.steps || 0;
+  const active = d.activeCal || 0;
+  const stand = d.standHours || 0;
+  const mins = Math.max((d.totalCal || 0), (d.sessions || []).reduce((a, s) => a + (s.mins||0), 0));
+
+  if (steps === 0 && active === 0 && stand === 0 && mins === 0) {
+    el.innerHTML = "No activity logged yet. Take a short walk to kickstart your rings!";
+    el.classList.remove('hidden');
+    return;
+  }
+
+  let pace = 1.0;
+  const now = new Date();
+  if (state.currentDate === getLocalDateString(now)) {
+    const hrs = now.getHours() + (now.getMinutes() / 60);
+    pace = Math.max(0.05, Math.min(1.0, (hrs - 6) / 16));
+  }
+
+  const settings = getSettings();
+  const stepDeficit = (settings.stepGoal * pace) - steps;
+  const minDeficit = (settings.exerciseGoal * pace) - mins;
+  const standDeficit = (settings.standGoal * pace) - stand;
+
+  let why = "You are crushing your activity goals today!";
+  let tip = "Keep moving and close those rings.";
+
+  if (stepDeficit > 0 || minDeficit > 0 || standDeficit > 0) {
+    why = "Your activity rings are falling behind the clock.";
+    
+    // Pick the biggest weakness
+    if (minDeficit > 5) {
+      tip = `Log ${Math.ceil(minDeficit)} minutes of dedicated exercise to boost your score.`;
+    } else if (stepDeficit > 500) {
+      tip = `You need about ${Math.ceil(stepDeficit)} more steps to catch up to the current time.`;
+    } else if (standDeficit > 1) {
+      tip = "Make sure to stand and move for at least 1 minute this hour.";
+    } else {
+      tip = "Burn a few more active calories to get back on track.";
+    }
+  }
+
+  el.innerHTML = `<span style="color:var(--text-muted);"><b>Why:</b> ${why}</span><br><div style="margin-top:6px; color:var(--text);"><b>💡 Next Step:</b> <span style="color:var(--exercise);">${tip}</span></div>`;
+  el.classList.remove('hidden');
 }
 
 function scoreWeight(d, profile) {
@@ -3209,6 +3330,8 @@ function updateFoodScore() {
     el.textContent = score !== null ? score : '--';
     el.style.color = score !== null ? (score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
   }
+  // NEW: Update the coaching text!
+  renderFoodFeedback(); 
 }
 
 // ============================================================
@@ -3465,6 +3588,8 @@ function updateExerciseScore() {
     el.textContent = score !== null ? score : '--';
     el.style.color = score !== null ? (score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--exercise)' : 'var(--danger)') : 'var(--text-muted)';
   }
+  // NEW: Update the coaching text!
+  renderExerciseFeedback();
 }
 
 // ============================================================
