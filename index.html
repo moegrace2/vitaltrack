@@ -305,6 +305,66 @@
   }
 }
 
+/* --- MODERN SLEEK CHECKBOXES --- */
+/* (Hides browser defaults, defines the custom appearance) */
+
+/* The outer container for each food item row */
+.food-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* (Preserve existing flex layout) */
+}
+
+/* 1. Remove the native standard checkbox entirely */
+.food-item .combine-chk {
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 10; /* Put it on top to capture the click */
+}
+
+/* 2. Style the custom checkmark spot on the far left */
+.food-item::before {
+  content: '';
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%; /* sleek circle */
+  border: 2px solid var(--surface3); /* faded grey when not selected */
+  margin-right: 12px;
+  background-color: var(--surface2);
+  transition: all 0.2s;
+  flex-shrink: 0; /* don't let it resize */
+}
+
+/* 3. The appearance when SELECTED: accent outline around the row and circle */
+/* (This applies an outline to the entire card container and the circle) */
+.food-item.checked {
+  outline: 2px solid var(--accent) !important; /* Prominent accent outline */
+  outline-offset: -2px;
+}
+
+.food-item.checked::before {
+  background-color: var(--accent); /* Solid accent color circle */
+  border-color: var(--accent);
+  
+  /* Add the sleek checkmark glyph inside the circle */
+  content: '✓';
+  color: white;
+  font-size: 16px;
+  font-weight: 900;
+  text-align: center;
+  line-height: 20px; /* aligns perfectly */
+}
+
+/* 4. Tweak the text meta-data so it fits the new left column spacing */
+.food-item .food-item-name {
+  padding-left: 2px;
+}
+
 </style>
 </head>
 <body>
@@ -2464,11 +2524,17 @@ function renderFoodLog() {
       <div class="macro-bar"><div class="macro-p" style="width:${pp}%"></div><div class="macro-c" style="width:${cp}%"></div><div class="macro-f" style="width:${fp}%"></div></div>`;
   } else { macroEl.innerHTML = ''; }
 
-  // Food list (Now with Edit and Save buttons)
+  // Food list (Now with Modern Checkboxes)
   const listEl = document.getElementById('food-log-list');
-  listEl.innerHTML = items.length === 0 ? '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No foods logged yet</div>' :
-    items.map((f, i) => `
-      <div class="food-item">
+  
+  if (items.length === 0) {
+    listEl.innerHTML = '<div class="text-muted text-sm" style="text-align:center;padding:12px;">No foods logged yet</div>';
+  } else {
+    let html = items.map((f, i) => `
+      <div class="food-item" data-id="${i}" style="display:flex; align-items:center;">
+        
+        <input type="checkbox" class="combine-chk" value="${i}" style="margin-right:12px; width:22px; height:22px; cursor:pointer;" onclick="toggleItemSelection(this)">
+        
         <div style="flex:1; padding-right:12px;">
           <div class="food-item-name">${f.name}</div>
           <div class="food-item-meta">${f.servingDesc || f.serving + ' serving'} · P:${Math.round(f.protein||0)}g C:${Math.round(f.carbs||0)}g F:${Math.round(f.fat||0)}g</div>
@@ -2482,6 +2548,13 @@ function renderFoodLog() {
           </div>
         </div>
       </div>`).join('');
+      
+    if (items.length > 1) {
+      // Button still works exactly the same
+      html += `<button class="btn btn-secondary btn-full mt-3" style="font-size:13px; border: 1px dashed var(--accent); color: var(--accent);" onclick="combineSelectedItems()">🔗 Combine Selected Items</button>`;
+    }
+    listEl.innerHTML = html;
+  }
 
   // Goal progress
   const goalEl = document.getElementById('food-goal-progress');
@@ -2499,6 +2572,20 @@ function removeFood(i) {
   setDayData('food', d);
   renderFoodLog();
   updateFoodScore();
+}
+
+// --- MODERN CHECKBOX SELECTION LOGIC ---
+function toggleItemSelection(checkboxEl) {
+  // Find the parent row container
+  const parentRow = checkboxEl.closest('.food-item');
+  
+  if (checkboxEl.checked) {
+    // Apply the modern accent outline and checkmark glyph
+    parentRow.classList.add('checked');
+  } else {
+    // Remove the styles
+    parentRow.classList.remove('checked');
+  }
 }
 
 function saveLoggedFoodAsMeal(i) {
@@ -2543,14 +2630,66 @@ function editLoggedFood(i) {
   openModal('edit-food-modal');
 }
 
-function saveEditedFood() {
-  const i = parseInt(document.getElementById('edit-food-index').value);
-  if (isNaN(i)) return;
+function selectSavedMeal(i) {
+  const pid = state.currentProfile;
+  const meal = state.savedMeals[pid][i];
+  if (!meal) return;
 
+  // --- DIRECT INJECT (Bypass the Add Food Modal) ---
+  const item = {
+    name: meal.name,
+    serving: 1,
+    servingDesc: "1 Saved Meal",
+    calories: meal.calories || 0,
+    protein: meal.protein || 0,
+    carbs: meal.carbs || 0,
+    fat: meal.fat || 0
+  };
+
+  const d = getDayData('food');
+  if (!d.items) d.items = [];
+  d.items.push(item);
+  setDayData('food', d);
+
+  // Close the Saved Meals menu if it was open
+  closeModal("saved-meals-modal");
+  
+  // Update the Dashboard UI instantly
+  renderFoodLog();
+  updateFoodScore();
+  showToast('Meal logged instantly ✓');
+}
+
+function saveEditedFood() {
+  const rawIndex = document.getElementById('edit-food-index').value;
+
+  // --- SCENARIO A: We are editing a SAVED MEAL in the database ---
+  if (String(rawIndex).startsWith('saved_')) {
+    const i = parseInt(rawIndex.replace('saved_', ''));
+    const pid = state.currentProfile;
+    let meal = state.savedMeals[pid][i];
+    
+    meal.name = document.getElementById('edit-food-name').value.trim();
+    meal.calories = parseFloat(document.getElementById('edit-food-cal').value) || 0;
+    meal.protein = parseFloat(document.getElementById('edit-food-p').value) || 0;
+    meal.carbs = parseFloat(document.getElementById('edit-food-c').value) || 0;
+    meal.fat = parseFloat(document.getElementById('edit-food-f').value) || 0;
+
+    saveToStorage();
+    closeModal('edit-food-modal');
+    showSavedMeals(); // Pops the list back open so you can see your changes!
+    renderSavedMealsQuick();
+    showToast('Saved meal updated ✓');
+    return;
+  }
+
+  // --- SCENARIO B: We are editing a food in TODAY'S LOG ---
+  const i = parseInt(rawIndex);
+  if (isNaN(i)) return;
+  
   const d = getDayData('food');
   if (!d.items || !d.items[i]) return;
 
-  // Update the item
   d.items[i].name = document.getElementById('edit-food-name').value.trim();
   d.items[i].calories = parseFloat(document.getElementById('edit-food-cal').value) || 0;
   d.items[i].protein = parseFloat(document.getElementById('edit-food-p').value) || 0;
@@ -2562,6 +2701,75 @@ function saveEditedFood() {
   renderFoodLog();
   updateFoodScore();
   showToast('Food updated ✓');
+}
+
+function combineSelectedItems() {
+  // Find all checked boxes
+  const checkedBoxes = document.querySelectorAll('.combine-chk:checked');
+  if (checkedBoxes.length < 2) {
+    showToast('Please check at least 2 items to combine');
+    return;
+  }
+
+  const mealName = prompt("What do you want to name this meal?", "Custom Meal");
+  if (!mealName) return;
+
+  const d = getDayData('food');
+  
+  // Get the exact indexes of the checked items and sort them highest-to-lowest
+  // (We sort highest to lowest so when we delete them, the index numbers don't shift and delete the wrong items!)
+  const indexes = Array.from(checkedBoxes).map(cb => parseInt(cb.value)).sort((a, b) => b - a);
+
+  let totalCals = 0, totalP = 0, totalC = 0, totalF = 0;
+
+  // Add up the macros only for the selected items
+  indexes.forEach(i => {
+    const f = d.items[i];
+    totalCals += f.calories || 0;
+    totalP += f.protein || 0;
+    totalC += f.carbs || 0;
+    totalF += f.fat || 0;
+  });
+
+  const combinedLogItem = {
+    name: mealName.trim(),
+    serving: 1,
+    servingDesc: "1 Custom Meal",
+    calories: totalCals,
+    protein: totalP,
+    carbs: totalC,
+    fat: totalF
+  };
+
+  const savedMealItem = {
+    fdcId: 'combined_' + Date.now(),
+    name: mealName.trim(),
+    calories: totalCals,
+    protein: totalP,
+    carbs: totalC,
+    fat: totalF,
+    brandOwner: 'Custom Meal',
+    serving: 100,
+    servingUnit: 'meal'
+  };
+
+  // Add to Favorites Database
+  const pid = state.currentProfile;
+  if (!state.savedMeals[pid]) state.savedMeals[pid] = [];
+  state.savedMeals[pid].push(savedMealItem);
+  saveToStorage();
+
+  // Delete the old individual ingredients from today's log
+  indexes.forEach(i => d.items.splice(i, 1));
+  
+  // Add the new combined meal to today's log
+  d.items.push(combinedLogItem);
+  
+  setDayData('food', d);
+  renderFoodLog();
+  renderSavedMealsQuick();
+  updateFoodScore();
+  showToast('Meal combined and saved! ⭐');
 }
 
 function debounceSearch(val) {
@@ -2834,14 +3042,16 @@ function renderSavedMealsQuick() {
   const pid = state.currentProfile;
   const meals = (state.savedMeals[pid] || []).slice(0, 3);
   const el = document.getElementById('saved-meals-quick');
+  
   if (meals.length === 0) { el.innerHTML = '<div class="text-xs text-muted">No saved meals yet</div>'; return; }
-  el.innerHTML = meals.map(m => `
+  
+  el.innerHTML = meals.map((m, i) => `
     <div class="saved-meal-item">
       <div>
         <div class="text-sm" style="font-weight:500;">${m.name.length>28?m.name.substring(0,28)+'...':m.name}</div>
         <div class="text-xs text-muted">${Math.round(m.calories)} kcal/100g</div>
       </div>
-      <button class="btn btn-sm btn-secondary" onclick='selectFood(${JSON.stringify(m)})'>Add</button>
+      <button class="btn btn-sm btn-secondary" onclick="selectSavedMeal(${i})">Add</button>
     </div>`).join('');
 }
 
@@ -2849,26 +3059,55 @@ function showSavedMeals() {
   const pid = state.currentProfile;
   const meals = state.savedMeals[pid] || [];
   const el = document.getElementById('saved-meals-list');
+  
   el.innerHTML = meals.length === 0 ? '<div class="text-muted text-sm">No saved meals yet</div>' :
     meals.map((m, i) => `
       <div class="saved-meal-item">
         <div>
           <div style="font-weight:500;font-size:14px;">${m.name}</div>
-          <div class="text-xs text-muted">${Math.round(m.calories)} kcal · P:${Math.round(m.protein)}g C:${Math.round(m.carbs)}g F:${Math.round(m.fat)}g per 100g</div>
+          <div class="text-xs text-muted">${Math.round(m.calories)} kcal · P:${Math.round(m.protein)}g C:${Math.round(m.carbs)}g F:${Math.round(m.fat)}g</div>
         </div>
         <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm btn-secondary" onclick='selectFood(${JSON.stringify(m)});closeModal("saved-meals-modal")'>Add</button>
+          <button class="btn btn-sm btn-secondary" onclick="selectSavedMeal(${i})">Add</button>
+          <button class="btn btn-sm btn-secondary" onclick="editSavedMeal(${i})">✏️</button>
           <button class="btn btn-sm btn-danger" onclick="deleteSavedMeal(${i})">×</button>
         </div>
       </div>`).join('');
+      
   openModal('saved-meals-modal');
+}
+function editSavedMeal(i) {
+  const pid = state.currentProfile;
+  const meal = state.savedMeals[pid][i];
+  if (!meal) return;
+
+  // We load the data into the edit modal, but use a special "saved_" tag
+  // so the app knows we are editing a favorite meal, not today's log!
+  document.getElementById('edit-food-index').value = 'saved_' + i; 
+  document.getElementById('edit-food-name').value = meal.name || '';
+  document.getElementById('edit-food-cal').value = Math.round(meal.calories || 0);
+  document.getElementById('edit-food-p').value = Math.round(meal.protein || 0);
+  document.getElementById('edit-food-c').value = Math.round(meal.carbs || 0);
+  document.getElementById('edit-food-f').value = Math.round(meal.fat || 0);
+
+  closeModal('saved-meals-modal');
+  openModal('edit-food-modal');
 }
 
 function deleteSavedMeal(i) {
   const pid = state.currentProfile;
+  
+  // 1. Delete it from the database
   state.savedMeals[pid].splice(i, 1);
   saveToStorage();
+  
+  // 2. Repaint the open modal so it vanishes from the list
   showSavedMeals();
+  
+  // 3. CRITICAL FIX: Repaint the quick-list on the dashboard behind the modal!
+  renderSavedMealsQuick(); 
+  
+  showToast('Meal deleted 🗑️');
 }
 
 function updateFoodScore() {
