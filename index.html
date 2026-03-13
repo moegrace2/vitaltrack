@@ -729,13 +729,39 @@
               <div id="profile-age-display" class="text-sm text-muted" style="margin-bottom:12px;"></div>
               <button class="btn btn-primary btn-full" onclick="saveProfileSettings()">Save Profile</button>
             </div>
-            <div class="card"><div class="card-title">Daily Goals</div>
-              <div class="form-row"><div class="form-group"><label class="form-label">Calorie Goal</label><input type="number" class="form-input" id="set-cal-goal" placeholder="2000"></div><div class="form-group"><label class="form-label">Step Goal</label><input type="number" class="form-input" id="set-step-goal" placeholder="10000"></div></div>
-              <div class="form-row"><div class="form-group"><label class="form-label">Sleep Goal (hrs)</label><input type="number" class="form-input" id="set-sleep-goal" placeholder="8" step="0.5"></div><div class="form-group"><label class="form-label">Water Goal (glasses)</label><input type="number" class="form-input" id="set-water-goal" placeholder="8"></div></div>
-              <div class="form-group"><label class="form-label">Target Weight (lbs)</label><input type="number" class="form-input" id="set-target-weight" placeholder="170" step="0.5"></div>
-              <button class="btn btn-primary btn-full" onclick="saveGoalSettings()">Save Goals</button>
-            </div>
-            <div class="card"><div class="card-title">Score Weights</div>
+            <h3 style="margin-top:20px; margin-bottom:12px; color:var(--food); font-size:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">🥗 Nutrition Goals</h3>
+			<div class="form-row">
+			  <div class="form-group"><label class="form-label">Daily Calories</label><input type="number" id="set-cal" class="form-input"></div>
+			  <div class="form-group"><label class="form-label">Water (Glasses)</label><input type="number" id="set-water" class="form-input"></div>
+			</div>
+			<div class="form-row">
+			  <div class="form-group"><label class="form-label">Protein Goal (g)</label><input type="number" id="set-protein" class="form-input" placeholder="e.g. 150"></div>
+			  <div class="form-group"><label class="form-label">Carbs Goal (g)</label><input type="number" id="set-carbs" class="form-input" placeholder="e.g. 200"></div>
+			</div>
+			<div class="form-row">
+			  <div class="form-group"><label class="form-label">Fat Goal (g)</label><input type="number" id="set-fat" class="form-input" placeholder="e.g. 65"></div>
+			  <div class="form-group"><label class="form-label">Fiber Goal (g)</label><input type="number" id="set-fiber" class="form-input" placeholder="e.g. 30"></div>
+			</div>
+
+			<h3 style="margin-top:32px; margin-bottom:12px; color:var(--exercise); font-size:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">🏃 Activity Goals</h3>
+			<div class="form-row">
+			  <div class="form-group"><label class="form-label">Daily Steps</label><input type="number" id="set-steps" class="form-input"></div>
+			  <div class="form-group"><label class="form-label">Move Goal (Active kcal)</label><input type="number" id="set-move" class="form-input" placeholder="e.g. 500"></div>
+			</div>
+			<div class="form-row">
+			<div class="form-group"><label class="form-label">Exercise Goal (Minutes)</label><input type="number" id="set-exercise" class="form-input" placeholder="e.g. 30"></div>
+			<div class="form-group"><label class="form-label">Stand Goal (Hours)</label><input type="number" id="set-stand" class="form-input" placeholder="e.g. 12"></div>
+		  </div>
+		  <h3 style="margin-top:32px; margin-bottom:12px; color:var(--weight); font-size:16px; border-bottom:1px solid var(--border); padding-bottom:8px;">⚖️ Body Goals</h3>
+		  <div class="form-row">
+			<div class="form-group"><label class="form-label">Target Weight (lbs)</label><input type="number" id="set-target-weight" class="form-input" placeholder="e.g. 185" step="0.1"></div>
+			<div class="form-group"><label class="form-label">Target Body Fat (%)</label><input type="number" id="set-target-bf" class="form-input" placeholder="e.g. 15" step="0.1"></div>
+		  </div>
+		  <div class="form-group"><label class="form-label">Target Visceral Fat</label><input type="number" id="set-target-vf" class="form-input" placeholder="e.g. 9" step="1"></div>
+		  <button class="btn btn-primary btn-full mt-3" onclick="saveGoalSettings()">Save Goals</button>
+		</div>
+		
+		<div class="card"><div class="card-title">Score Weights</div>
               <div class="text-sm text-muted" style="margin-bottom:14px;">Total must equal 100%</div>
               <div id="weight-sliders"></div>
               <div id="weight-total" class="text-sm" style="margin-top:10px;font-weight:600;"></div>
@@ -1597,40 +1623,107 @@ function scoreSleepTrackerStyle(d) {
 
 function scoreFood(d) {
   if (!d || !d.items || d.items.length === 0) return null;
-  const goal = getSettings().calGoal || 2000;
-  const total = d.items.reduce((a, f) => a + (f.calories || 0), 0);
-  let s = 100;
-  const diff = Math.abs(total - goal) / goal;
-  s -= Math.min(40, diff * 80);
+  const settings = getSettings();
+  
+  const calGoal = settings.calGoal || 2000;
+  const proteinGoal = settings.proteinGoal || 150;
+  const carbsGoal = settings.carbsGoal || 200;
+  const fatGoal = settings.fatGoal || 65;
+  const fiberGoal = settings.fiberGoal || 30;
+  const waterGoal = settings.waterGoal || 8;
+
+  const totalCals = d.items.reduce((a, f) => a + (f.calories || 0), 0);
+  const totalP = d.items.reduce((a, f) => a + (f.protein || 0), 0);
+  const totalC = d.items.reduce((a, f) => a + (f.carbs || 0), 0);
+  const totalF = d.items.reduce((a, f) => a + (f.fat || 0), 0);
+  const totalFiber = d.items.reduce((a, f) => a + (f.fiber || 0), 0);
   const water = d.water || 0;
-  const waterGoal = getSettings().waterGoal || 8;
-  const waterPct = Math.min(1, water / waterGoal);
-  s = s * 0.8 + waterPct * 20;
-  return Math.max(0, Math.min(100, Math.round(s)));
+
+  // --- THE PACING ENGINE ---
+  let pace = 1.0; 
+  const now = new Date();
+  // Only apply pacing if we are looking at TODAY'S dashboard. 
+  // If we are looking at yesterday, the pace is naturally 100% (the day is over).
+  if (state.currentDate === getLocalDateString(now)) {
+    const hrs = now.getHours() + (now.getMinutes() / 60);
+    // Active waking hours: 6 AM to 10 PM (16 hour window). 
+    // Caps at 1.0 (100%) and floors at 0.05 (5%) so it never divides by zero.
+    pace = Math.max(0.05, Math.min(1.0, (hrs - 6) / 16));
+  }
+
+  let score = 0;
+
+  // 1. Calories: 40 points 
+  // (We use a 20% grace window so you don't lose points just for eating a normal-sized lunch)
+  const pacedCals = calGoal * pace;
+  const calDiff = Math.max(0, (Math.abs(totalCals - pacedCals) / pacedCals) - 0.20);
+  score += Math.max(0, 40 - (calDiff * 40));
+
+  // 2. Accumulators: 46 points total (Reward for staying ahead of the clock)
+  score += Math.min(20, (totalP / (proteinGoal * pace)) * 20);
+  score += Math.min(20, (water / (waterGoal * pace)) * 20); // Water bumped up to 20!
+  score += Math.min(6, (totalFiber / (fiberGoal * pace)) * 6);
+
+  // 3. Carbs & Fat: 14 points total (7 points each, with a 20% grace window)
+  const pacedCarbs = carbsGoal * pace;
+  const carbDiff = Math.max(0, (Math.abs(totalC - pacedCarbs) / pacedCarbs) - 0.20);
+  score += Math.max(0, 7 - (carbDiff * 7));
+
+  const pacedFat = fatGoal * pace;
+  const fatDiff = Math.max(0, (Math.abs(totalF - pacedFat) / pacedFat) - 0.20);
+  score += Math.max(0, 7 - (fatDiff * 7));
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function scoreExercise(d) {
   if (!d) return null;
   const steps = d.steps || 0;
   const stand = d.standHours || 0;
-  const sessions = (d.sessions || []).reduce((a, s) => a + (s.mins || 0), 0);
-  if (steps === 0 && sessions === 0) return null;
-  let s = 0;
-  const stepGoal = getSettings().stepGoal || 10000;
-  s += Math.min(50, (steps / stepGoal) * 50);
-  s += Math.min(25, (sessions / 30) * 25);
-  s += Math.min(25, (stand / 12) * 25);
-  return Math.max(0, Math.min(100, Math.round(s)));
+  const activeCal = d.activeCal || 0;
+  
+  const sessionsMins = (d.sessions || []).reduce((a, s) => a + (s.mins || 0), 0);
+  const manualMins = d.totalCal || 0; 
+  const exerciseMins = Math.max(sessionsMins, manualMins);
+
+  if (steps === 0 && exerciseMins === 0 && activeCal === 0 && stand === 0) return null;
+
+  const settings = getSettings();
+  const stepGoal = settings.stepGoal || 10000;
+  const moveGoal = settings.moveGoal || 500;
+  const exerciseGoal = settings.exerciseGoal || 30;
+  const standGoal = settings.standGoal || 12;
+
+  // --- THE PACING ENGINE ---
+  let pace = 1.0; 
+  const now = new Date();
+  if (state.currentDate === getLocalDateString(now)) {
+    const hrs = now.getHours() + (now.getMinutes() / 60);
+    pace = Math.max(0.05, Math.min(1.0, (hrs - 6) / 16));
+  }
+
+  let score = 0;
+
+  // Exercise Accumulators (25 points each based on expected pace for this time of day)
+  score += Math.min(25, (steps / (stepGoal * pace)) * 25);
+  score += Math.min(25, (activeCal / (moveGoal * pace)) * 25);
+  score += Math.min(25, (exerciseMins / (exerciseGoal * pace)) * 25);
+  score += Math.min(25, (stand / (standGoal * pace)) * 25);
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 function scoreWeight(d, profile) {
   if (!d || !d.weight) return null;
 
+  const settings = getSettings();
   const sex = profile?.sex || 'male';
-  const fIdeal = sex === 'male' ? 15.0 : 22.0;
-  const vIdeal = 10.0;
+  
+  // --- NEW: Uses your custom goals, but falls back to defaults if you leave the boxes blank! ---
+  const fIdeal = settings.targetBf || (sex === 'male' ? 15.0 : 22.0);
+  const vIdeal = settings.targetVf || 10.0;
 
-  // Body Fat Penalty
+  // Body Fat Penalty (Subtracts points if you are over your goal)
   const pFat = d.bf != null ? Math.max(0, (d.bf - fIdeal) * 2) : 0;
 
   // Visceral Fat Penalty
@@ -1639,8 +1732,7 @@ function scoreWeight(d, profile) {
   // Base score with penalties, floored at 40
   const baseScore = Math.max(40, 100 - pFat - pVisceral);
 
-  // Goal proximity bonus (up to 20% boost)
-  const settings = getSettings();
+  // Goal proximity bonus for Target Weight (up to 20% boost)
   let multiplier = 1.0;
   if (d.weight && settings.targetWeight) {
     const wR = 50.0;   // bonus starts within 50 lbs of goal
@@ -1652,7 +1744,6 @@ function scoreWeight(d, profile) {
 
   return Math.max(0, Math.min(100, Math.round(baseScore * multiplier)));
 }
-
 function calcDailyScore(date) {
   return calcDailyScoreForDate(date || state.currentDate);
 }
@@ -3666,13 +3757,27 @@ function loadSettingsPage() {
       document.getElementById('profile-age-display').textContent = `Age: ${getAge(p.birthday)} years old`;
     }
   }
-  document.getElementById('set-cal-goal').value = settings.calGoal || 2000;
-  document.getElementById('set-step-goal').value = settings.stepGoal || 10000;
-  document.getElementById('set-sleep-goal').value = settings.sleepGoal || 8;
-  document.getElementById('set-water-goal').value = settings.waterGoal || 8;
-  document.getElementById('set-target-weight').value = settings.targetWeight || '';
 
-  // Supabase status — rendered by renderSupabaseStatusCard(), refresh it here too
+  // --- NEW: Load Detailed Goals ---
+  document.getElementById('set-cal').value = settings.calGoal || 2000;
+  document.getElementById('set-water').value = settings.waterGoal || 8;
+  document.getElementById('set-protein').value = settings.proteinGoal || 150;
+  document.getElementById('set-carbs').value = settings.carbsGoal || 200;
+  document.getElementById('set-fat').value = settings.fatGoal || 65;
+  document.getElementById('set-fiber').value = settings.fiberGoal || 30;
+
+  // Load Activity Goals
+  document.getElementById('set-steps').value = settings.stepGoal || 10000;
+  document.getElementById('set-move').value = settings.moveGoal || 500;
+  document.getElementById('set-exercise').value = settings.exerciseGoal || 30;
+  document.getElementById('set-stand').value = settings.standGoal || 12;
+
+  // --- NEW: Load Body Goals ---
+  document.getElementById('set-target-weight').value = settings.targetWeight || '';
+  document.getElementById('set-target-bf').value = settings.targetBf || '';
+  document.getElementById('set-target-vf').value = settings.targetVf || '';
+
+  // Supabase status
   renderSupabaseStatusCard();
 
   // Notifications
@@ -3758,13 +3863,35 @@ function saveProfileSettings() {
 
 function saveGoalSettings() {
   const settings = state.settings[state.currentProfile] || {};
-  settings.calGoal = parseInt(document.getElementById('set-cal-goal').value) || 2000;
-  settings.stepGoal = parseInt(document.getElementById('set-step-goal').value) || 10000;
-  settings.sleepGoal = parseFloat(document.getElementById('set-sleep-goal').value) || 8;
-  settings.waterGoal = parseInt(document.getElementById('set-water-goal').value) || 8;
+  
+  // Save Nutrition Goals
+  settings.calGoal = parseInt(document.getElementById('set-cal').value) || 2000;
+  settings.waterGoal = parseInt(document.getElementById('set-water').value) || 8;
+  settings.proteinGoal = parseInt(document.getElementById('set-protein').value) || 150;
+  settings.carbsGoal = parseInt(document.getElementById('set-carbs').value) || 200;
+  settings.fatGoal = parseInt(document.getElementById('set-fat').value) || 65;
+  settings.fiberGoal = parseInt(document.getElementById('set-fiber').value) || 30;
+
+  // Save Activity Goals
+  settings.stepGoal = parseInt(document.getElementById('set-steps').value) || 10000;
+  settings.moveGoal = parseInt(document.getElementById('set-move').value) || 500;
+  settings.exerciseGoal = parseInt(document.getElementById('set-exercise').value) || 30;
+  settings.standGoal = parseInt(document.getElementById('set-stand').value) || 12;
+
+  // --- NEW: Save Body Goals ---
   settings.targetWeight = parseFloat(document.getElementById('set-target-weight').value) || null;
+  settings.targetBf = parseFloat(document.getElementById('set-target-bf').value) || null;
+  settings.targetVf = parseInt(document.getElementById('set-target-vf').value) || null;
+
   state.settings[state.currentProfile] = settings;
   saveToStorage();
+  
+  // Refresh all the UIs behind the scenes so the math updates instantly
+  renderFoodLog();
+  renderExerciseStats();
+  updateWeightScore();
+  renderBMICard();
+  
   showToast('Goals saved ✓');
 }
 
