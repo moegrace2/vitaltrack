@@ -2048,69 +2048,62 @@ function renderStrengthTrend() {
   const profileData = state.data[pid] || {};
   const selector = document.getElementById('lift-selector');
   if (!selector) return;
-  
-  const selectedLift = selector.value;
+
   const dates = Object.keys(profileData).sort();
-  const liftData = [];
   const liftNames = new Set();
-  
-  // Track if the current selection is primarily Bodyweight
-  let isBWMode = false;
 
-  // 1. Scan your entire history for lift names and data points
+  // 1. FIRST PASS: Find all unique exercise names in history
   dates.forEach(date => {
-    const dayEx = profileData[date]?.exercise;
-    if (dayEx && dayEx.sessions) {
-      dayEx.sessions.forEach(sess => {
-        if (sess.workouts) {
-          sess.workouts.forEach(w => {
-            if (typeof w === 'object' && w.name) {
-              liftNames.add(w.name); // Always collect names for the dropdown
-              
-              if (w.name === selectedLift) {
-                const reps = parseInt(w.reps) || 0;
-                let dataValue = 0;
-
-                // Handle Bodyweight vs Weighted logic
-                if (w.weight === 'BW' || !w.weight || w.weight === 0) {
-                  dataValue = reps; // Track Max Reps
-                  isBWMode = true;
-                } else {
-                  // Track Est. 1RM: Weight / (1.0278 - (0.0278 * Reps))
-                  const weight = parseFloat(w.weight) || 0;
-                  dataValue = Math.round(weight / (1.0278 - (0.0278 * reps)));
-                  isBWMode = false;
-                }
-                
-                // Only keep the best set per day for the chart
-                const existing = liftData.find(d => d.date === date);
-                if (existing) {
-                  existing.val = Math.max(existing.val, dataValue);
-                } else {
-                  liftData.push({ date, val: dataValue });
-                }
-              }
-            }
-          });
-        }
-      });
-    }
+    const sessions = profileData[date]?.exercise?.sessions || [];
+    sessions.forEach(sess => {
+      if (sess.workouts) {
+        sess.workouts.forEach(w => {
+          if (typeof w === 'object' && w.name) liftNames.add(w.name);
+        });
+      }
+    });
   });
 
-  // 2. Auto-populate the dropdown if new lifts are found
-  if (selector.options.length <= 1 || liftNames.size > selector.options.length) {
-    const sortedNames = Array.from(liftNames).sort();
-    selector.innerHTML = sortedNames.map(n => 
-      `<option value="${n}" ${n === selectedLift ? 'selected' : ''}>${n}</option>`
-    ).join('');
-    
-    if (!selector.value && sortedNames.length > 0) {
-      selector.value = sortedNames[0];
-      return renderStrengthTrend(); // Re-run once to draw the first lift
-    }
+  // 2. POPULATE DROPDOWN: If empty, fill it and set a default
+  const sortedNames = Array.from(liftNames).sort();
+  if (selector.options.length === 0 && sortedNames.length > 0) {
+    selector.innerHTML = sortedNames.map(n => `<option value="${n}">${n}</option>`).join('');
+    selector.value = sortedNames[0]; // Force select the first lift
   }
 
-  // 3. Prep and Draw the Chart
+  const selectedLift = selector.value;
+  if (!selectedLift) return; // Exit if still no data
+
+  const liftData = [];
+  let isBWMode = false;
+
+  // 3. SECOND PASS: Get data for the selected lift
+  dates.forEach(date => {
+    const sessions = profileData[date]?.exercise?.sessions || [];
+    sessions.forEach(sess => {
+      if (sess.workouts) {
+        sess.workouts.forEach(w => {
+          if (typeof w === 'object' && w.name === selectedLift) {
+            const reps = parseInt(w.reps) || 0;
+            let val = 0;
+            if (w.weight === 'BW' || !w.weight || w.weight === 0) {
+              val = reps;
+              isBWMode = true;
+            } else {
+              const weight = parseFloat(w.weight) || 0;
+              val = Math.round(weight / (1.0278 - (0.0278 * reps)));
+              isBWMode = false;
+            }
+            const existing = liftData.find(d => d.date === date);
+            if (existing) existing.val = Math.max(existing.val, val);
+            else liftData.push({ date, val });
+          }
+        });
+      }
+    });
+  });
+
+  // 4. RENDER
   const finalLabels = liftData.map(d => {
     const dt = new Date(d.date + 'T00:00:00');
     return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -2119,12 +2112,10 @@ function renderStrengthTrend() {
 
   drawLineChart('strength-chart', finalLabels, finalValues, 'var(--exercise)');
   
-  // 4. Update the "Personal Best" text below the chart
   const hint = document.getElementById('strength-stats-hint');
   if (hint && finalValues.length > 0) {
     const max = Math.max(...finalValues);
-    const unit = isBWMode ? 'Reps' : 'lbs (Est. 1RM)';
-    hint.textContent = `Personal Best for ${selectedLift}: ${max} ${unit}`;
+    hint.textContent = `Personal Best for ${selectedLift}: ${max} ${isBWMode ? 'Reps' : 'lbs (Est. 1RM)'}`;
   }
 }
 
