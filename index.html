@@ -156,7 +156,19 @@
   .range-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
   .range-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface2); color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 600; }
   .range-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-  canvas { max-width: 100%; }
+  /* This forces the canvas element to take up the full card width in the grid */
+.trends-chart-grid .card canvas {
+  width: 100% !important;
+  height: auto !important;
+  display: block;
+}
+
+/* Ensure the card allows the chart to expand */
+.trends-chart-grid .card {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
 
   /* === AUTH === */
   #auth-screen { 
@@ -1600,9 +1612,15 @@ function navTo(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + page).classList.remove('hidden');
+  
   const nb = document.getElementById('nav-' + page);
   if (nb) nb.classList.add('active');
-  refreshPage(page);
+
+  // Use a tiny timeout to ensure the page is VISIBLE before calculating chart widths
+  setTimeout(() => {
+    refreshPage(page);
+  }, 10); 
+  
   window.scrollTo(0, 0);
 }
 
@@ -4143,8 +4161,13 @@ function renderTrends() {
   });
 
   // 3. UI Optimization
-  const skipLabels = dates.length > 30 ? Math.ceil(dates.length / 15) : 1;
-  const displayLabels = labels.map((l, i) => i % skipLabels === 0 ? l : '');
+  let skipLabels = 1;
+	if (dates.length > 300) skipLabels = 45;      // 1Y: Show a date every ~6 weeks
+	else if (dates.length > 80) skipLabels = 14;  // 3M: Show a date every 2 weeks
+	else if (dates.length > 10) skipLabels = 5;   // 30D: Show a date every 5 days
+	else skipLabels = 1;                          // 7D: Show every day
+
+	const displayLabels = labels.map((l, i) => i % skipLabels === 0 ? l : '');
 
   // 4. Draw Standard Charts
   drawLineChart('score-chart', displayLabels, scores, '#3b82f6', '0-100');
@@ -4182,9 +4205,14 @@ function drawLineChart(id, labels, data, color, yRange) {
   const canvas = document.getElementById(id);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const W = canvas.offsetWidth || 320;
-  const H = 180;
-  canvas.width = W; canvas.height = H;
+  // Get the width of the parent card, not the canvas itself
+	const containerWidth = canvas.parentElement.clientWidth;
+	const W = (containerWidth > 0 ? containerWidth - 40 : 320); // 40 is the card padding
+	const H = 180;
+
+	canvas.width = W; 
+	canvas.height = H;
+	canvas.style.width = W + 'px'; // Ensures the internal resolution matches the display
   
   const pad = { top: 16, right: 12, bottom: 32, left: 40 };
   const cw = W - pad.left - pad.right;
