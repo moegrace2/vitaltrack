@@ -4621,9 +4621,13 @@ async function parseScreenshotWithAI(base64, mediaType) {
 
   const prompts = {
     sleep: `You are reading a sleep tracking app screenshot. Extract ONLY these values if visible and return ONLY valid JSON, no explanation:\n{"totalH": integer, "totalM": integer, "deepH": integer, "deepM": integer, "lightH": integer, "lightM": integer, "remH": integer, "remM": integer, "awakeH": integer, "awakeM": integer, "wakeups": integer, "hr": integer, "breath": number, "efficiency": integer, "fellAsleep": string, "qualityScore": integer}\nReturn null for any field not found. Return only the JSON object.`,
-    exercise: `You are reading an Apple Fitness or activity app screenshot. Extract ONLY these values and return ONLY valid JSON:
-	{"steps": integer, "standHours": integer, "activeCal": integer, "exerciseMins": integer, "distance": number, "flights": integer, "type": "string", "workouts": [{"name": "string", "sets": integer, "reps": integer, "weight": number|string}]}
-	CRITICAL: For the green "Exercise" ring (minutes), if you see a format like "14/60", extract ONLY the first number (14). Return it as "exerciseMins".`,
+    exercise: `You are reading an Apple Fitness app screenshot. Extract ONLY these values as numbers and return ONLY valid JSON:
+	{"steps": integer, "standHours": integer, "activeCal": integer, "exerciseMins": integer, "distance": number, "flights": integer, "type": "string", "workouts": [{"name": "string", "sets": integer, "reps": integer, "weight": "string"}]}
+	CRITICAL RULES FOR APPLE FITNESS:
+	- activeCal: Look at the RED "Move" section. Use the FIRST large number before the slash (e.g., 808 from 808/500). DO NOT use the tiny graph axis numbers or "TOTAL CAL".
+	- exerciseMins: Look at the GREEN "Exercise" section. Use the FIRST large number before the slash (e.g., 14 from 14/30).
+	- standHours: Look at the BLUE "Stand" section. Use the FIRST number before the slash (e.g., 15 from 15/12).
+	Return ONLY JSON.`,
     weight: `You are reading a RENPHO or body composition scale app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:\n{"weight": number, "bf": number, "vf": number, "mm": number, "sm": number, "subf": number, "water": number, "bone": number, "protein": number, "bmr": integer, "metage": integer}\nReturn null for any field not found. Return only the JSON object.`
   };
 
@@ -4683,8 +4687,8 @@ function renderParsedResults(data, target) {
     lightH:'Light Sleep hrs', lightM:'Light Sleep min', remH:'REM hrs', remM:'REM min',
     awakeH:'Awake hrs', awakeM:'Awake min', wakeups:'Wake-ups', hr:'Avg Heart Rate',
     breath:'Breath Rate', efficiency:'Efficiency %', fellAsleep:'Fell Asleep',
-    // exercise
-    steps:'Steps', standHours:'Stand Hours', activeCal:'Active Calories', totalCal:'Total Calories',
+    // exercise (UPDATED THIS LINE)
+    steps:'Steps', standHours:'Stand Hours', activeCal:'Active Calories', exerciseMins:'Exercise (mins)', totalCal:'Total Calories',
     distance:'Distance (mi)', flights:'Flights Climbed',
     // weight
     weight:'Weight (lbs)', bf:'Body Fat %', vf:'Visceral Fat', mm:'Muscle Mass (lbs)',
@@ -4724,29 +4728,32 @@ function applyScreenshotData() {
     renderSleepSummary();
     
   } else if (screenshotImportTarget === 'exercise') {
-    // 1. Fill Daily Activity basics
-    if (d.steps != null) document.getElementById('e-steps').value = d.steps;
-    if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
-    if (d.activeCal != null) document.getElementById('e-active-cal').value = d.activeCal;
-    if (d.distance != null) document.getElementById('e-distance').value = d.distance;
-    if (d.flights != null) document.getElementById('e-flights').value = d.flights;
-    
-    // --- UPDATED MINUTE CLEANER ---
-    if (d.totalCal != null) {
-      // Splits at the slash (if 14/30) and strips any non-numbers (if "14 mins")
-      const cleanMins = String(d.totalCal).split('/')[0].replace(/[^0-9]/g, '');
-      document.getElementById('e-mins').value = parseInt(cleanMins) || 0;
-    }
+  // 1. Fill Daily Activity basics
+  if (d.steps != null) document.getElementById('e-steps').value = d.steps;
+  if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
+  if (d.activeCal != null) document.getElementById('e-active-cal').value = d.activeCal;
+  if (d.distance != null) document.getElementById('e-distance').value = d.distance;
+  if (d.flights != null) document.getElementById('e-flights').value = d.flights;
+  
+  // 2. Map Exercise Minutes correctly
+  // We check BOTH keys just in case the AI uses the old one or the new one
+  const minsValue = d.exerciseMins !== undefined ? d.exerciseMins : d.totalCal;
+  
+  if (minsValue != null) {
+    // Clean up any potential slashes (e.g., "14/30")
+    const cleanMins = String(minsValue).split('/')[0].replace(/[^0-9]/g, '');
+    document.getElementById('e-mins').value = parseInt(cleanMins) || 0;
+  }
 
-    // 2. Handle the structured workout rows (Lifts/Sets/Reps)
-    if (d.workouts && d.workouts.length > 0) {
-      showAddSessionModal();
-      document.getElementById('sess-type').value = d.type || d.workouts[0].name;
-      const list = document.getElementById('sess-workouts-list');
-      list.innerHTML = ''; 
-      setWorkoutType('strength');
-      d.workouts.forEach(w => addWorkoutRow(w));
-    }
+  // 3. Handle workout rows
+  if (d.workouts && d.workouts.length > 0) {
+    showAddSessionModal();
+    document.getElementById('sess-type').value = d.type || d.workouts[0].name;
+    const list = document.getElementById('sess-workouts-list');
+    list.innerHTML = ''; 
+    setWorkoutType('strength');
+    d.workouts.forEach(w => addWorkoutRow(w));
+  }
 
   } else if (screenshotImportTarget === 'weight') {
     const map = { weight:'w-weight', bf:'w-bf', vf:'w-vf', mm:'w-mm', sm:'w-sm',
