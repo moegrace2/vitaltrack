@@ -4622,8 +4622,8 @@ async function parseScreenshotWithAI(base64, mediaType) {
   const prompts = {
     sleep: `You are reading a sleep tracking app screenshot. Extract ONLY these values if visible and return ONLY valid JSON, no explanation:\n{"totalH": integer, "totalM": integer, "deepH": integer, "deepM": integer, "lightH": integer, "lightM": integer, "remH": integer, "remM": integer, "awakeH": integer, "awakeM": integer, "wakeups": integer, "hr": integer, "breath": number, "efficiency": integer, "fellAsleep": string, "qualityScore": integer}\nReturn null for any field not found. Return only the JSON object.`,
     exercise: `You are reading an Apple Fitness or activity app screenshot. Extract ONLY these values and return ONLY valid JSON:
-	{"steps": integer, "standHours": integer, "activeCal": integer, "totalCal": integer, "distance": number, "flights": integer}
-	CRITICAL: For "Exercise (mins)", if you see a format like "14/60" or "14/30", extract ONLY the first number (e.g., 14). Do not include the slash or the goal.`,
+	{"steps": integer, "standHours": integer, "activeCal": integer, "totalCal": integer, "distance": number, "flights": integer, "type": "string", "workouts": [{"name": "string", "sets": integer, "reps": integer, "weight": number|string}]}
+	CRITICAL: For "Exercise (mins)" or "totalCal", if you see a format like "14/60", extract ONLY the first number (14). Use "BW" for bodyweight in workouts.`,
     weight: `You are reading a RENPHO or body composition scale app screenshot. Extract ONLY these values and return ONLY valid JSON, no explanation:\n{"weight": number, "bf": number, "vf": number, "mm": number, "sm": number, "subf": number, "water": number, "bone": number, "protein": number, "bmr": integer, "metage": integer}\nReturn null for any field not found. Return only the JSON object.`
   };
 
@@ -4731,22 +4731,19 @@ function applyScreenshotData() {
     if (d.distance != null) document.getElementById('e-distance').value = d.distance;
     if (d.flights != null) document.getElementById('e-flights').value = d.flights;
     
+    // --- UPDATED MINUTE CLEANER ---
     if (d.totalCal != null) {
-      const cleanMins = String(d.totalCal).split('/')[0].trim();
-      document.getElementById('e-mins').value = parseInt(cleanMins);
+      // Splits at the slash (if 14/30) and strips any non-numbers (if "14 mins")
+      const cleanMins = String(d.totalCal).split('/')[0].replace(/[^0-9]/g, '');
+      document.getElementById('e-mins').value = parseInt(cleanMins) || 0;
     }
 
-    // 2. NEW: Handle the structured workout rows (Lifts/Sets/Reps)
+    // 2. Handle the structured workout rows (Lifts/Sets/Reps)
     if (d.workouts && d.workouts.length > 0) {
-      // First, open the Session Modal if it isn't already
       showAddSessionModal();
-      
-      // AI usually identifies the first lift as the Type
       document.getElementById('sess-type').value = d.type || d.workouts[0].name;
-      
       const list = document.getElementById('sess-workouts-list');
-      list.innerHTML = ''; // Clear defaults
-      
+      list.innerHTML = ''; 
       setWorkoutType('strength');
       d.workouts.forEach(w => addWorkoutRow(w));
     }
