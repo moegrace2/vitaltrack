@@ -4620,7 +4620,14 @@ async function parseScreenshotWithAI(base64, mediaType) {
   const resultEl = document.getElementById('screenshot-result');
 
   const prompts = {
-    sleep: `You are reading a sleep tracking app screenshot. Extract ONLY these values if visible and return ONLY valid JSON, no explanation:\n{"totalH": integer, "totalM": integer, "deepH": integer, "deepM": integer, "lightH": integer, "lightM": integer, "remH": integer, "remM": integer, "awakeH": integer, "awakeM": integer, "wakeups": integer, "hr": integer, "breath": number, "efficiency": integer, "fellAsleep": string, "qualityScore": integer}\nReturn null for any field not found. Return only the JSON object.`,
+    sleep: `You are reading a sleep tracking app screenshot. Extract ONLY these values if visible and return ONLY valid JSON, no explanation:
+	{"totalH": integer, "totalM": integer, "deepH": integer, "deepM": integer, "lightH": integer, "lightM": integer, "remH": integer, "remM": integer, "awakeH": integer, "awakeM": integer, "wakeups": integer, "hr": integer, "breath": number, "efficiency": integer, "fellAsleep": string, "qualityScore": integer}
+
+	CRITICAL RULES FOR SLEEP DURATIONS:
+	- For any duration shown as HH:MM (e.g., "5:08"), extract the number BEFORE the colon into the "H" field (e.g., "totalH": 5) and the number AFTER the colon into the "M" field (e.g., "totalM": 8).
+	- DO NOT convert hours into total minutes.
+	- If a duration is only minutes (e.g., "41m"), set the "H" field to 0 and the "M" field to the number.
+	Return ONLY valid JSON.`,
     exercise: `You are reading an Apple Fitness app screenshot. Extract ONLY these values as numbers and return ONLY valid JSON:
 	{"steps": integer, "standHours": integer, "activeCal": integer, "exerciseMins": integer, "distance": number, "flights": integer, "type": "string", "workouts": [{"name": "string", "sets": integer, "reps": integer, "weight": "string"}]}
 	CRITICAL RULES FOR APPLE FITNESS:
