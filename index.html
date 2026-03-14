@@ -289,6 +289,10 @@
     flex-direction: column-reverse !important;
   }
 
+/* ADD THESE TWO LINES HERE: */
+  .trends-chart-grid { grid-template-columns: 1fr !important; }
+  .trends-score-full { grid-column: span 1 !important; }
+  
   /* 5. Mobile Spacing & Polish */
   .card {
     padding: 16px; 
@@ -363,6 +367,38 @@
 /* 4. Tweak the text meta-data so it fits the new left column spacing */
 .food-item .food-item-name {
   padding-left: 2px;
+}
+
+/* Removes those annoying up/down arrows on the tiny number inputs */
+.workout-row input::-webkit-outer-spin-button,
+.workout-row input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.workout-row input {
+    font-size: 13px !important;
+    padding: 8px 4px !important;
+}
+
+.trends-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal columns */
+  gap: 16px; /* Spacing between cards */
+  align-items: start;
+}
+
+/* On small screens (phones), switch back to 1 column */
+@media (max-width: 768px) {
+  .trends-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ensure canvases inside cards resize correctly */
+.trends-grid .card canvas {
+  width: 100% !important;
+  height: auto !important;
 }
 
 </style>
@@ -707,28 +743,86 @@
         </div>
       </div>
 
-      <!-- TRENDS -->
       <div id="page-trends" class="page hidden">
-        <div class="section-header"><div class="section-icon" style="background:rgba(59,130,246,0.15);">📈</div><div class="section-title">Trends</div></div>
-        <div class="range-btns">
-          <button class="range-btn active" onclick="setRange('7d',this)">7D</button>
-          <button class="range-btn" onclick="setRange('30d',this)">30D</button>
-          <button class="range-btn" onclick="setRange('3m',this)">3M</button>
-          <button class="range-btn" onclick="setRange('1y',this)">1Y</button>
-          <button class="range-btn" onclick="setRange('custom',this)">Custom</button>
-        </div>
-        <div id="custom-range-inputs" class="hidden card" style="margin-bottom:16px;">
-          <div class="form-row"><div class="form-group"><label class="form-label">From</label><input type="date" class="form-input" id="range-from"></div><div class="form-group"><label class="form-label">To</label><input type="date" class="form-input" id="range-to"></div></div>
-          <button class="btn btn-primary btn-sm" onclick="applyCustomRange()">Apply</button>
-        </div>
-        <div class="trends-chart-grid">
-          <div class="card trends-score-full"><div class="card-subtitle">Daily Health Score</div><canvas id="score-chart" height="180"></canvas></div>
-          <div class="card"><div class="card-subtitle">Sleep (hours)</div><canvas id="sleep-chart" height="160"></canvas></div>
-          <div class="card"><div class="card-subtitle">Weight (lbs)</div><canvas id="weight-chart" height="160"></canvas></div>
-          <div class="card"><div class="card-subtitle">Daily Steps</div><canvas id="steps-chart" height="160"></canvas></div>
-          <div class="card"><div class="card-subtitle">Calories</div><canvas id="cal-chart" height="160"></canvas></div>
-        </div>
-      </div>
+		  <div class="section-header">
+			<div class="section-icon" style="background:rgba(59,130,246,0.15);">📈</div>
+			<div class="section-title">Trends</div>
+		  </div>
+
+		  <div class="range-btns">
+			<button class="range-btn active" onclick="setRange('7d',this)">7D</button>
+			<button class="range-btn" onclick="setRange('30d',this)">30D</button>
+			<button class="range-btn" onclick="setRange('3m',this)">3M</button>
+			<button class="range-btn" onclick="setRange('1y',this)">1Y</button>
+			<button class="range-btn" onclick="setRange('custom',this)">Custom</button>
+		  </div>
+
+		  <div id="custom-range-inputs" class="hidden card" style="margin-bottom:16px;">
+			<div class="form-row">
+			  <div class="form-group"><label class="form-label">From</label><input type="date" class="form-input" id="range-from"></div>
+			  <div class="form-group"><label class="form-label">To</label><input type="date" class="form-input" id="range-to"></div>
+			</div>
+			<button class="btn btn-primary btn-sm" onclick="applyCustomRange()">Apply</button>
+		  </div>
+
+		  <div class="trends-chart-grid">
+			
+			<div class="card trends-score-full">
+			  <div class="card-subtitle">Daily Health Score</div>
+			  <canvas id="score-chart" height="150"></canvas>
+			</div>
+
+			<div class="card">
+			  <div class="flex-between" style="margin-bottom: 12px;">
+				<div class="card-subtitle" style="margin-bottom: 0;">💪 Strength Progression</div>
+				<select id="lift-selector" class="form-input" style="max-width: 150px; padding: 4px 8px; font-size: 12px;" onchange="renderStrengthTrend()"></select>
+			  </div>
+			  <canvas id="strength-chart" height="180"></canvas>
+			  <div id="strength-stats-hint" class="text-xs text-muted mt-2" style="text-align: center;"></div>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">📊 Daily Workload (Volume)</div>
+			  <canvas id="volume-trend-chart" height="180"></canvas>
+			  <div id="volume-stats-hint" class="text-xs text-muted mt-2" style="text-align: center;"></div>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">⏱️ Exercise Minutes</div>
+			  <canvas id="exercise-mins-chart" height="160"></canvas>
+			  <div id="exercise-mins-hint" class="text-xs text-muted mt-2" style="text-align: center;"></div>
+			</div>
+
+			<div class="card">
+			  <div class="flex-between" style="margin-bottom: 12px;">
+				<div class="card-subtitle" style="margin-bottom: 0;">🏆 All-Time PRs</div>
+				<div class="text-xs text-muted">Heaviest Weights</div>
+			  </div>
+			  <div id="pr-list-container" style="display: grid; grid-template-columns: 1fr; gap: 8px;"></div>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">Weight (lbs)</div>
+			  <canvas id="weight-chart" height="160"></canvas>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">Sleep (hours)</div>
+			  <canvas id="sleep-chart" height="160"></canvas>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">Calories</div>
+			  <canvas id="cal-chart" height="160"></canvas>
+			</div>
+
+			<div class="card">
+			  <div class="card-subtitle">Daily Steps</div>
+			  <canvas id="steps-chart" height="160"></canvas>
+			</div>
+
+		  </div>
+		</div>
 
       <!-- SETTINGS -->
       <div id="page-settings" class="page hidden">
@@ -821,38 +915,47 @@
 <div class="modal-overlay" id="add-session-modal">
   <div class="modal"><div class="modal-handle"></div>
     <div class="flex-between" style="margin-bottom:16px;">
-      <div class="modal-title" id="session-modal-title" style="margin-bottom:0;">Add Exercise Session</div>
+      <div class="modal-title" id="session-modal-title" style="margin-bottom:0;">Log Workout</div>
       <button class="btn btn-sm btn-secondary" onclick="openSessionScreenshot()" style="gap:6px;">📷 Import</button>
     </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:20px; background:var(--surface2); padding:4px; border-radius:12px;">
+      <button id="btn-type-cardio" class="btn btn-sm" style="flex:1; background:var(--exercise); color:#000;" onclick="setWorkoutType('cardio')">🏃 Cardio</button>
+      <button id="btn-type-strength" class="btn btn-sm" style="flex:1; background:transparent; color:var(--text-muted);" onclick="setWorkoutType('strength')">🏋️ Strength</button>
+    </div>
+
     <input type="file" id="sess-screenshot-input" accept="image/*" style="display:none" onchange="handleSessionScreenshot(this.files[0])">
     <div id="sess-screenshot-status" style="display:none;" class="card-sm" style="margin-bottom:12px;"></div>
+    
     <div class="form-group"><label class="form-label">Workout Type</label><input type="text" class="form-input" id="sess-type" placeholder="Elliptical, Running, Lifting..."></div>
-    <div class="form-group">
-	  <label class="form-label">Duration</label>
-	  <div style="display:flex;gap:8px;align-items:center;">
-		<input type="number" class="form-input" id="sess-hrs" placeholder="0" min="0" style="flex:1;">
-		<span class="text-muted" style="font-size:12px;">h</span>
-		<input type="number" class="form-input" id="sess-mins" placeholder="45" min="0" style="flex:1;">
-		<span class="text-muted" style="font-size:12px;">m</span>
-		<input type="number" class="form-input" id="sess-secs" placeholder="0" min="0" max="59" style="flex:1;">
-		<span class="text-muted" style="font-size:12px;">s</span>
-	  </div>
-	</div>
-    <div class="form-row">
-      <div class="form-group"><label class="form-label">Avg Heart Rate</label><input type="number" class="form-input" id="sess-hr" placeholder="144" min="30"></div>
-      <div class="form-group"><label class="form-label">Active Calories</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46" min="0"></div>
-    </div>
-    <div class="form-group"><label class="form-label">Total Calories</label><input type="number" class="form-input" id="sess-total-cal" placeholder="55" min="0"></div>
     
     <div class="form-group">
-      <div class="flex-between" style="margin-bottom:8px;">
-        <label class="form-label" style="margin-bottom:0;">Workouts / Sets Done</label>
-        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="addWorkoutRow()">+ Add Row</button>
+      <label class="form-label">Duration</label>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="number" class="form-input" id="sess-hrs" placeholder="0" min="0" style="flex:1;">
+        <span class="text-muted" style="font-size:12px;">h</span>
+        <input type="number" class="form-input" id="sess-mins" placeholder="45" min="0" style="flex:1;">
+        <span class="text-muted" style="font-size:12px;">m</span>
       </div>
-      <div id="sess-workouts-list" style="display:flex;flex-direction:column;gap:8px;"></div>
     </div>
+
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Avg HR</label><input type="number" class="form-input" id="sess-hr" placeholder="144"></div>
+      <div class="form-group"><label class="form-label">Active Cal</label><input type="number" class="form-input" id="sess-active-cal" placeholder="46"></div>
+    </div>
+
+    <div id="strength-fields" class="hidden">
+      <div class="form-group">
+        <div class="flex-between" style="margin-bottom:8px;">
+          <label class="form-label" style="margin-bottom:0;">Lifts / Sets</label>
+          <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px;" onclick="addWorkoutRow()">+ Add Lift</button>
+        </div>
+        <div id="sess-workouts-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
     <input type="hidden" id="sess-edit-index" value="">
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;gap:10px;margin-top:20px;">
       <button class="btn btn-secondary" style="flex:1" onclick="closeModal('add-session-modal')">Cancel</button>
       <button class="btn btn-primary" style="flex:1" id="sess-save-btn" onclick="saveSession()">Add Session</button>
     </div>
@@ -1838,35 +1941,191 @@ function scoreWeight(d, profile) {
   if (!d || !d.weight) return null;
 
   const settings = getSettings();
-  const sex = profile?.sex || 'male';
+  const actualAge = getAge(profile?.birthday);
   
-  // --- NEW: Uses your custom goals, but falls back to defaults if you leave the boxes blank! ---
-  const fIdeal = settings.targetBf || (sex === 'male' ? 15.0 : 22.0);
-  const vIdeal = settings.targetVf || 10.0;
+  // 1. Setup Ideals
+  const targetBf = settings.targetBf || (profile?.sex === 'male' ? 15 : 22);
+  const targetVf = settings.targetVf || 10;
+  
+  let score = 100;
 
-  // Body Fat Penalty (Subtracts points if you are over your goal)
-  const pFat = d.bf != null ? Math.max(0, (d.bf - fIdeal) * 2) : 0;
-
-  // Visceral Fat Penalty
-  const pVisceral = d.vf != null ? Math.max(0, (d.vf - vIdeal) * 1.5) : 0;
-
-  // Base score with penalties, floored at 40
-  const baseScore = Math.max(40, 100 - pFat - pVisceral);
-
-  // Goal proximity bonus for Target Weight (up to 20% boost)
-  let multiplier = 1.0;
-  if (d.weight && settings.targetWeight) {
-    const wR = 50.0;   // bonus starts within 50 lbs of goal
-    const bMax = 0.20; // max 20% bonus
-    const dist = Math.abs(d.weight - settings.targetWeight);
-    const bonus = Math.max(0, bMax * (1 - dist / wR));
-    multiplier = 1 + bonus;
+  // 2. Body Fat Penalty (Heavy weight: 40% of score)
+  if (d.bf) {
+    const bfDiff = Math.max(0, d.bf - targetBf);
+    score -= (bfDiff * 2.5); // Lose 2.5 pts for every 1% over target
   }
 
-  return Math.max(0, Math.min(100, Math.round(baseScore * multiplier)));
+  // 3. Visceral Fat Penalty (The "Health" marker)
+  if (d.vf) {
+    const vfDiff = Math.max(0, d.vf - targetVf);
+    score -= (vfDiff * 4); // Visceral fat is dangerous, so the penalty is higher
+  }
+
+  // 4. Muscle Mass Bonus (Rewarding "Good" weight)
+  if (d.mm && d.weight) {
+    const musclePct = (d.mm / d.weight) * 100;
+    // Aim for 70%+ for men, 60%+ for women
+    const muscleGoal = profile?.sex === 'male' ? 75 : 65;
+    const muscleBonus = Math.min(10, (musclePct / muscleGoal) * 10);
+    score += muscleBonus;
+  }
+
+  // 5. Metabolic Age Reality Check
+  if (d.metage && actualAge !== '?') {
+    const ageDiff = d.metage - actualAge;
+    if (ageDiff > 0) score -= (ageDiff * 1); // Penalty for being "older" inside
+    else score += 5; // Small bonus for being "younger" inside
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
 }
+
 function calcDailyScore(date) {
   return calcDailyScoreForDate(date || state.currentDate);
+}
+
+
+let currentWorkoutType = 'cardio';
+
+function setWorkoutType(type) {
+  currentWorkoutType = type;
+  const btnC = document.getElementById('btn-type-cardio');
+  const btnS = document.getElementById('btn-type-strength');
+  const sFields = document.getElementById('strength-fields');
+
+  if (type === 'cardio') {
+    btnC.style.background = 'var(--exercise)'; btnC.style.color = '#000';
+    btnS.style.background = 'transparent'; btnS.style.color = 'var(--text-muted)';
+    sFields.classList.add('hidden');
+  } else {
+    btnS.style.background = 'var(--exercise)'; btnS.style.color = '#000';
+    btnC.style.background = 'transparent'; btnC.style.color = 'var(--text-muted)';
+    sFields.classList.remove('hidden');
+  }
+}
+
+// Updated Row Creator with "BW" support
+function addWorkoutRow(initialValue = { name: '', sets: '', reps: '', weight: '' }) {
+  const list = document.getElementById('sess-workouts-list');
+  const row = document.createElement('div');
+  row.className = 'workout-row';
+  row.style = "display:flex; gap:6px; align-items:center; margin-bottom:8px;";
+
+  row.innerHTML = `
+    <input type="text" class="form-input workout-lift" placeholder="Lift" value="${initialValue.name || ''}" style="flex:2; font-size:13px;">
+    <input type="number" class="form-input workout-sets" placeholder="S" value="${initialValue.sets || ''}" style="flex:0.6; text-align:center; font-size:13px;">
+    <input type="number" class="form-input workout-reps" placeholder="R" value="${initialValue.reps || ''}" style="flex:0.6; text-align:center; font-size:13px;">
+    
+    <div style="flex:1.2; position:relative; display:flex; align-items:center;">
+      <input type="text" class="form-input workout-weight" placeholder="lbs" value="${initialValue.weight || ''}" style="width:100%; text-align:center; font-size:13px; padding-right:24px;">
+      <span onclick="toggleBW(this)" style="position:absolute; right:4px; font-size:9px; cursor:pointer; color:var(--accent); font-weight:800; background:var(--surface3); padding:2px 4px; border-radius:4px; user-select:none;">BW</span>
+    </div>
+    
+    <button class="btn" onclick="this.parentElement.remove()" style="background:transparent; border:none; color:var(--text-muted); padding:0 4px; cursor:pointer; font-size:16px;">✕</button>
+  `;
+  list.appendChild(row);
+}
+
+// The logic to flip the input to Bodyweight
+function toggleBW(label) {
+  const input = label.parentElement.querySelector('.workout-weight');
+  if (input.value === 'BW') {
+    input.value = '';
+    input.type = 'number'; // Switch back to number for weights
+  } else {
+    input.type = 'text';   // Switch to text so it can hold "BW"
+    input.value = 'BW';
+  }
+}
+
+function toggleBW(btn) {
+  const input = btn.parentElement.querySelector('.workout-weight');
+  input.value = (input.value === 'BW') ? '' : 'BW';
+}
+
+function renderStrengthTrend() {
+  const pid = state.currentProfile;
+  const profileData = state.data[pid] || {};
+  const selector = document.getElementById('lift-selector');
+  if (!selector) return;
+  
+  const selectedLift = selector.value;
+  const dates = Object.keys(profileData).sort();
+  const liftData = [];
+  const liftNames = new Set();
+  
+  // Track if the current selection is primarily Bodyweight
+  let isBWMode = false;
+
+  // 1. Scan your entire history for lift names and data points
+  dates.forEach(date => {
+    const dayEx = profileData[date]?.exercise;
+    if (dayEx && dayEx.sessions) {
+      dayEx.sessions.forEach(sess => {
+        if (sess.workouts) {
+          sess.workouts.forEach(w => {
+            if (typeof w === 'object' && w.name) {
+              liftNames.add(w.name); // Always collect names for the dropdown
+              
+              if (w.name === selectedLift) {
+                const reps = parseInt(w.reps) || 0;
+                let dataValue = 0;
+
+                // Handle Bodyweight vs Weighted logic
+                if (w.weight === 'BW' || !w.weight || w.weight === 0) {
+                  dataValue = reps; // Track Max Reps
+                  isBWMode = true;
+                } else {
+                  // Track Est. 1RM: Weight / (1.0278 - (0.0278 * Reps))
+                  const weight = parseFloat(w.weight) || 0;
+                  dataValue = Math.round(weight / (1.0278 - (0.0278 * reps)));
+                  isBWMode = false;
+                }
+                
+                // Only keep the best set per day for the chart
+                const existing = liftData.find(d => d.date === date);
+                if (existing) {
+                  existing.val = Math.max(existing.val, dataValue);
+                } else {
+                  liftData.push({ date, val: dataValue });
+                }
+              }
+            }
+          });
+        }
+      });
+    }
+  });
+
+  // 2. Auto-populate the dropdown if new lifts are found
+  if (selector.options.length <= 1 || liftNames.size > selector.options.length) {
+    const sortedNames = Array.from(liftNames).sort();
+    selector.innerHTML = sortedNames.map(n => 
+      `<option value="${n}" ${n === selectedLift ? 'selected' : ''}>${n}</option>`
+    ).join('');
+    
+    if (!selector.value && sortedNames.length > 0) {
+      selector.value = sortedNames[0];
+      return renderStrengthTrend(); // Re-run once to draw the first lift
+    }
+  }
+
+  // 3. Prep and Draw the Chart
+  const finalLabels = liftData.map(d => {
+    const dt = new Date(d.date + 'T00:00:00');
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+  const finalValues = liftData.map(d => d.val);
+
+  drawLineChart('strength-chart', finalLabels, finalValues, 'var(--exercise)');
+  
+  // 4. Update the "Personal Best" text below the chart
+  const hint = document.getElementById('strength-stats-hint');
+  if (hint && finalValues.length > 0) {
+    const max = Math.max(...finalValues);
+    const unit = isBWMode ? 'Reps' : 'lbs (Est. 1RM)';
+    hint.textContent = `Personal Best for ${selectedLift}: ${max} ${unit}`;
+  }
 }
 
 // ============================================================
@@ -3385,16 +3644,37 @@ function renderExerciseStats() {
   el.innerHTML = html;
 }
 
-function addWorkoutRow(val = '') {
+function addWorkoutRow(initialValue = { name: '', sets: '', reps: '', weight: '' }) {
   const list = document.getElementById('sess-workouts-list');
   const row = document.createElement('div');
-  row.style.display = 'flex';
-  row.style.gap = '8px';
+  row.className = 'workout-row';
+  row.style = "display:flex; gap:6px; align-items:center; margin-bottom:8px;";
+
   row.innerHTML = `
-    <input type="text" class="form-input workout-row-input" placeholder="e.g. Bench 3x8" value="${val.replace(/"/g, '&quot;')}">
-    <button class="btn btn-secondary" style="padding:0;width:38px;height:42px;flex-shrink:0;font-size:18px;" onclick="this.parentElement.remove()">×</button>
+    <input type="text" class="form-input workout-lift" placeholder="Lift" value="${initialValue.name || ''}" style="flex:2; font-size:13px;">
+    <input type="number" class="form-input workout-sets" placeholder="S" value="${initialValue.sets || ''}" style="flex:0.6; text-align:center; font-size:13px;">
+    <input type="number" class="form-input workout-reps" placeholder="R" value="${initialValue.reps || ''}" style="flex:0.6; text-align:center; font-size:13px;">
+    
+    <div style="flex:1.2; position:relative; display:flex; align-items:center;">
+      <input type="text" class="form-input workout-weight" placeholder="lbs" value="${initialValue.weight || ''}" style="width:100%; text-align:center; font-size:13px; padding-right:24px;">
+      <span onclick="toggleBW(this)" style="position:absolute; right:4px; font-size:9px; cursor:pointer; color:var(--accent); font-weight:800; background:var(--surface3); padding:2px 4px; border-radius:4px; user-select:none;">BW</span>
+    </div>
+    
+    <button class="btn" onclick="this.parentElement.remove()" style="background:transparent; border:none; color:var(--text-muted); padding:0 4px; cursor:pointer; font-size:16px;">✕</button>
   `;
   list.appendChild(row);
+}
+
+// The logic to flip the input to Bodyweight
+function toggleBW(label) {
+  const input = label.parentElement.querySelector('.workout-weight');
+  if (input.value === 'BW') {
+    input.value = '';
+    input.type = 'number'; // Switch back to number for weights
+  } else {
+    input.type = 'text';   // Switch to text so it can hold "BW"
+    input.value = 'BW';
+  }
 }
 
 function showAddSessionModal() {
@@ -3419,64 +3699,99 @@ function editSession(i) {
   const d = getDayData('exercise');
   const s = d.sessions[i];
   if (!s) return;
-  
+
+  // Helper to safely set values without crashing
+  const safeSet = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = (val !== null && val !== undefined) ? val : '';
+  };
+
   document.getElementById('session-modal-title').textContent = 'Edit Exercise Session';
   document.getElementById('sess-save-btn').textContent = 'Save Changes';
-  document.getElementById('sess-edit-index').value = i;
-  
-  document.getElementById('sess-type').value = s.type || '';
-  document.getElementById('sess-mins').value = s.mins || '';
-  document.getElementById('sess-secs').value = s.secs || '';
-  document.getElementById('sess-hr').value = s.hr || '';
-  document.getElementById('sess-active-cal').value = s.activeCal || '';
-  document.getElementById('sess-total-cal').value = s.totalCal || '';
-  
-  // Load existing workouts into the dynamic rows
+  safeSet('sess-edit-index', i);
+  safeSet('sess-type', s.type);
+
+  // Handle Hours/Minutes split
+  const totalMins = s.mins || 0;
+  safeSet('sess-hrs', Math.floor(totalMins / 60));
+  safeSet('sess-mins', totalMins % 60);
+
+  // Handle remaining fields safely
+  safeSet('sess-secs', s.secs);
+  safeSet('sess-hr', s.hr);
+  safeSet('sess-active-cal', s.activeCal);
+  safeSet('sess-total-cal', s.totalCal);
+
   const list = document.getElementById('sess-workouts-list');
-  list.innerHTML = '';
-  
-  if (Array.isArray(s.workouts) && s.workouts.length > 0) {
-    s.workouts.forEach(w => addWorkoutRow(w));
-  } else if (typeof s.workouts === 'string' && s.workouts) {
-    // Legacy support for your old comma-separated strings
-    addWorkoutRow(s.workouts);
-  } else {
-    addWorkoutRow(); // Blank default
+  if (list) {
+    list.innerHTML = '';
+    if (Array.isArray(s.workouts) && s.workouts.length > 0) {
+      setWorkoutType('strength');
+      s.workouts.forEach(w => {
+        const initialValue = typeof w === 'object' ? w : { name: w };
+        addWorkoutRow(initialValue);
+      });
+    } else {
+      setWorkoutType('cardio');
+      addWorkoutRow();
+    }
   }
-  
+
   openModal('add-session-modal');
 }
 
 function saveSession() {
-  const type = document.getElementById('sess-type').value.trim();
-  
-  // Update these lines to include the new hours input
-  const hrs = parseInt(document.getElementById('sess-hrs').value) || 0;
-  const mins = parseInt(document.getElementById('sess-mins').value) || 0;
-  const totalMins = (hrs * 60) + mins; // Convert everything to minutes for your database
-  
-  const secs = parseInt(document.getElementById('sess-secs').value) || 0;
-  const hr = parseInt(document.getElementById('sess-hr').value) || null;
-  const activeCal = parseInt(document.getElementById('sess-active-cal').value) || null;
-  const totalCal = parseInt(document.getElementById('sess-total-cal').value) || null;
-  const editIdx = document.getElementById('sess-edit-index').value;
+  // Helper to safely get values
+  const safeGet = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : null;
+  };
 
-  // Gather all workout rows
-  const workoutInputs = document.querySelectorAll('.workout-row-input');
-  const workoutsArray = Array.from(workoutInputs).map(inp => inp.value.trim()).filter(v => v !== '');
+  const type = safeGet('sess-type');
+  if (!type) { showToast('Please enter a workout type'); return; }
+  
+  // Calculate total minutes safely
+  const h = parseInt(safeGet('sess-hrs')) || 0;
+  const m = parseInt(safeGet('sess-mins')) || 0;
+  const totalMins = (h * 60) + m;
+  
+  if (totalMins === 0) { showToast('Please enter a duration'); return; }
 
-  if (!type || totalMins === 0) { showToast('Enter workout type and duration'); return; }
+  const secs = parseInt(safeGet('sess-secs')) || 0;
+  const hr = parseInt(safeGet('sess-hr')) || null;
+  const activeCal = parseInt(safeGet('sess-active-cal')) || null;
+  const totalCal = parseInt(safeGet('sess-total-cal')) || null;
+  const editIdx = safeGet('sess-edit-index');
+
+  // --- STRUCTURED STRENGTH DATA ---
+  const workoutRows = document.querySelectorAll('.workout-row');
+  const workoutsArray = [];
+
+  workoutRows.forEach(row => {
+    const name = row.querySelector('.workout-lift').value.trim();
+    const sets = row.querySelector('.workout-sets').value;
+    const reps = row.querySelector('.workout-reps').value;
+    const weightVal = row.querySelector('.workout-weight').value;
+
+    if (name) {
+      // Logic: If they typed "BW", save it as a string. Otherwise, save as a number.
+      const weight = (weightVal === 'BW') ? 'BW' : (parseFloat(weightVal) || 0);
+      workoutsArray.push({ name, sets, reps, weight });
+    }
+  });
 
   const d = getDayData('exercise');
   if (!d.sessions) d.sessions = [];
 
   const sessionObj = { 
-    type, mins, secs, hr, activeCal, totalCal, 
-    workouts: workoutsArray, // Now saved as an Array
-    id: editIdx ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() 
+    type, 
+    mins: totalMins, 
+    secs, hr, activeCal, totalCal, 
+    workouts: workoutsArray, 
+    id: editIdx !== '' ? d.sessions[parseInt(editIdx)]?.id || Date.now() : Date.now() 
   };
 
-  if (editIdx !== '') {
+  if (editIdx !== '' && editIdx !== null) {
     d.sessions[parseInt(editIdx)] = sessionObj;
     showToast('Session updated ✓');
   } else {
@@ -3492,28 +3807,75 @@ function saveSession() {
 
 function renderSessionList() {
   const d = getDayData('exercise');
-  const sessions = d.sessions || [];
-  const el = document.getElementById('session-list');
-  el.innerHTML = sessions.length === 0 ? '<div class="text-muted text-sm">No sessions logged yet</div>' :
-    sessions.map((s, i) => `
-      <div class="session-item">
-        <div class="flex-between" style="margin-bottom:4px;">
-          <div style="font-weight:600;font-size:14px;">${s.type}</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="color:var(--exercise);font-size:13px;font-weight:600;">${s.secs > 0 ? `${s.mins}:${String(s.secs).padStart(2,'0')}` : `${s.mins} min`}</span>
-            <button onclick="editSession(${i})" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:12px;padding:2px 8px;font-family:inherit;">Edit</button>
-            <button onclick="removeSession(${i})" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">×</button>
+  const container = document.getElementById('session-list'); 
+  
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (!d.sessions || d.sessions.length === 0) {
+    container.innerHTML = '<div class="text-muted" style="text-align:center; padding:20px;">No sessions logged for today.</div>';
+    return;
+  }
+
+  d.sessions.forEach((sess, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card-sm';
+    card.style = "margin-bottom:12px; border-left:4px solid var(--exercise); background:rgba(26, 34, 53, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding:16px; border-radius:12px; border:1px solid var(--border);";
+
+    let workoutHtml = '';
+    let totalSessionVolume = 0; // Initialize volume counter
+
+    if (sess.workouts && sess.workouts.length > 0) {
+      workoutHtml = `<div style="margin-top:10px; border-top:1px solid var(--surface3); padding-top:8px;">`;
+      
+      sess.workouts.forEach(w => {
+        if (typeof w === 'object') {
+          // --- VOLUME CALCULATION ---
+          const sets = parseInt(w.sets) || 0;
+          const reps = parseInt(w.reps) || 0;
+          const weight = w.weight === 'BW' ? 0 : (parseFloat(w.weight) || 0);
+          totalSessionVolume += (sets * reps * weight);
+
+          // Display logic for Bodyweight vs Lbs
+          const weightDisplay = (w.weight === 'BW' || w.weight === '') ? 'BW' : w.weight + 'lbs';
+
+          workoutHtml += `
+            <div class="flex-between" style="font-size:13px; margin-bottom:4px; align-items: flex-start;">
+              <span style="font-weight:500; color:var(--text); flex: 1; padding-right: 8px;">${w.name}</span>
+              <span style="color:var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap;">
+                ${w.sets}×${w.reps} <span style="font-size:11px; opacity:0.6;">@</span> ${weightDisplay}
+              </span>
+            </div>`;
+        } else {
+          workoutHtml += `<div style="font-size:13px; color:var(--text-muted);">• ${w}</div>`;
+        }
+      });
+      workoutHtml += `</div>`;
+    }
+
+    // Only show the volume badge if weight was actually moved
+    const volumeBadge = totalSessionVolume > 0 
+      ? `<div style="font-size:10px; background:rgba(245,158,11,0.15); color:#f59e0b; padding:2px 6px; border-radius:4px; font-weight:700; display:inline-block; margin-top:4px;">VOL: ${totalSessionVolume.toLocaleString()} lbs</div>` 
+      : '';
+
+    card.innerHTML = `
+      <div class="flex-between" style="margin-bottom: 4px;">
+        <div style="flex: 1;">
+          <div style="font-weight:bold; font-size:15px; color:var(--text);">${sess.type}</div>
+          <div style="font-size:12px; color:var(--text-muted); opacity:0.8;">
+            ${sess.mins}m ${sess.secs || 0}s • ${sess.activeCal || 0} kcal • ${sess.hr || '--'} bpm
           </div>
+          ${volumeBadge}
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:10px;">
-          ${s.hr ? `<span class="text-xs text-muted">❤️ ${s.hr} bpm avg</span>` : ''}
-          ${s.activeCal ? `<span class="text-xs text-muted">🔥 ${s.activeCal} active cal</span>` : ''}
-          ${s.totalCal ? `<span class="text-xs text-muted">⚡ ${s.totalCal} total cal</span>` : ''}
+        <div style="display:flex; gap:12px; align-items: flex-start;">
+          <button class="btn-icon" onclick="editSession(${idx})" style="background:transparent; border:none; cursor:pointer; padding:4px; font-size:14px; color:var(--text-muted);">✏️</button>
+          <button class="btn-icon" onclick="removeSession(${idx})" style="background:transparent; border:none; cursor:pointer; padding:4px; font-size:14px; color:var(--danger); opacity:0.6;">🗑️</button>
         </div>
-        ${Array.isArray(s.workouts) && s.workouts.length > 0 
-           ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;line-height:1.5;">${s.workouts.map(w => `• ${w}`).join('<br>')}</div>` 
-           : (typeof s.workouts === 'string' && s.workouts ? `<div class="text-xs text-muted mt-2" style="opacity:0.8;">• ${s.workouts}</div>` : '')}
-      </div>`).join('');
+      </div>
+      ${workoutHtml}
+    `;
+    container.appendChild(card);
+  });
 }
 
 function openSessionScreenshot() {
@@ -3524,7 +3886,7 @@ async function handleSessionScreenshot(file) {
   if (!file) return;
   const statusEl = document.getElementById('sess-screenshot-status');
   statusEl.style.display = 'block';
-  statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div> Reading screenshot...</div>';
+  statusEl.innerHTML = '<div style="display:flex;align-items:center;gap:8px;"><div class="spinner"></div><span>AI is parsing sets & reps...</span></div>';
   
   try {
     const base64 = await new Promise((res, rej) => {
@@ -3535,40 +3897,64 @@ async function handleSessionScreenshot(file) {
     });
     
     const mediaType = file.type || 'image/jpeg';
-    const prompt = `You are reading a workout screenshot (e.g. Apple Fitness). Extract these values and return ONLY valid JSON:
-	{"type": string, "hrs": integer, "mins": integer, "secs": integer, "hr": integer, "activeCal": integer, "totalCal": integer, "distance": number}
-	If the time is "1:22:05", hrs is 1, mins is 22, secs is 5. Return null for missing fields.`;
     
-    // Call your secure Edge Function instead of Google directly
+    // THE UPGRADED PROMPT: Explicitly handles multi-weight sets
+    const prompt = `You are a fitness data expert. Read this workout screenshot. 
+    If you see one exercise with multiple different weights/reps (e.g. "Overhead Press 1x12 @ 55, 1x10 @ 75"), 
+    list them as SEPARATE objects in the array.
+    
+    Return ONLY valid JSON:
+    {
+      "type": "String",
+      "hrs": integer, "mins": integer, "secs": integer,
+      "hr": integer, "activeCal": integer,
+      "workouts": [
+        {"name": "Overhead Press", "sets": 1, "reps": 12, "weight": 55},
+        {"name": "Overhead Press", "sets": 1, "reps": 10, "weight": 75},
+        {"name": "Push Ups", "sets": 3, "reps": 15, "weight": "BW"}
+      ]
+    }
+    Use "BW" for bodyweight. Return null for missing fields.`;
+    
     const { data, error } = await supabaseClient.functions.invoke('gemini-proxy', {
-      body: { base64: base64, mediaType: mediaType, prompt: prompt }
+      body: { base64, mediaType, prompt }
     });
 
-    if (error) throw new Error(error.message || 'Failed to reach proxy server');
-    if (data.error) throw new Error(data.error);
-
+    if (error) throw new Error(error.message);
     const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('No data found');
-    
     const d = JSON.parse(jsonMatch[0]);
 
-    // --- STEP C GOES HERE ---
-    if (d.hrs != null) document.getElementById('sess-hrs').value = d.hrs;
-    // ------------------------
+    // 1. Fill basic stats (Only if the element exists in your HTML!)
+    const fill = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val !== null) el.value = val;
+    };
 
-    if (d.type) document.getElementById('sess-type').value = d.type;
-    if (d.mins != null) document.getElementById('sess-mins').value = d.mins;
-    if (d.secs != null) document.getElementById('sess-secs').value = d.secs;
-    if (d.hr != null) document.getElementById('sess-hr').value = d.hr;
-    if (d.activeCal != null) document.getElementById('sess-active-cal').value = d.activeCal;
-    if (d.totalCal != null) document.getElementById('sess-total-cal').value = d.totalCal;
-    if (d.distance != null) document.getElementById('sess-distance').value = d.distance;
+    fill('sess-type', d.type);
+    fill('sess-hrs', d.hrs);
+    fill('sess-mins', d.mins);
+    fill('sess-secs', d.secs);
+    fill('sess-hr', d.hr);
+    fill('sess-active-cal', d.activeCal);
+    fill('sess-total-cal', d.totalCal);
 
-    statusEl.innerHTML = '<div style="color:var(--success);font-weight:600;">✓ Form filled from screenshot!</div>';
+    // Handle the Rows
+    const list = document.getElementById('sess-workouts-list');
+    list.innerHTML = ''; // Clear default rows
+
+    if (d.workouts && d.workouts.length > 0) {
+      setWorkoutType('strength');
+      d.workouts.forEach(w => addWorkoutRow(w));
+    } else {
+      setWorkoutType('cardio');
+    }
+
+    statusEl.innerHTML = '<div style="color:var(--success);font-weight:600;">✓ Form filled with detailed sets!</div>';
   } catch(err) {
     console.error(err);
-    statusEl.innerHTML = `<div style="color:var(--danger);">⚠️ Could not read screenshot. Try a clearer image.</div>`;
+    statusEl.innerHTML = `<div style="color:var(--danger);">⚠️ Could not read screenshot.</div>`;
   }
 }
 
@@ -3715,34 +4101,90 @@ function renderTrends() {
   const pid = state.currentProfile;
   const profileData = state.data[pid] || {};
 
-  // Aggregate data
+  // 1. Aggregate Time Labels
   const labels = dates.map(d => {
     const dt = new Date(d + 'T00:00:00');
-    return currentRange === '1y' ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) :
-           currentRange === '3m' ? dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) :
-           dt.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   });
 
-  const profile = getProfile();
+  // 2. Calculate Values
   const scores = dates.map(d => { const {total} = calcDailyScoreForDate(d); return total; });
-
   const sleepVals = dates.map(d => (profileData[d]?.sleep?.total) || null);
   const weightVals = dates.map(d => (profileData[d]?.weight?.weight) || null);
   const stepVals = dates.map(d => (profileData[d]?.exercise?.steps) || null);
+  const minsVals = dates.map(d => {
+  const ex = profileData[d]?.exercise;
+	  if (!ex) return null;
+	  
+	  // 1. Check if there's a direct daily total (from AI Import)
+	  if (ex.mins) return parseInt(ex.mins);
+	  
+	  // 2. If not, sum up the minutes from all logged sessions for that day
+	  if (ex.sessions && ex.sessions.length > 0) {
+		return ex.sessions.reduce((acc, sess) => acc + (parseInt(sess.mins) || 0), 0);
+	  }
+	  
+	  return null;
+	});
+  
   const calVals = dates.map(d => {
     const items = profileData[d]?.food?.items || [];
-    return items.length > 0 ? items.reduce((a,i) => a + (i.calories||0), 0) : null;
+    return items.length > 0 ? items.reduce((a, i) => a + (i.calories || 0), 0) : null;
   });
 
-  // Thin out labels for long ranges
+  // Calculate Daily Workload Volume
+  const volumeVals = dates.map(d => {
+    const sessions = profileData[d]?.exercise?.sessions || [];
+    let dailyVol = 0;
+    sessions.forEach(sess => {
+      if (sess.workouts) {
+        sess.workouts.forEach(w => {
+          if (typeof w === 'object' && w.weight !== 'BW') {
+            const s = parseInt(w.sets) || 0;
+            const r = parseInt(w.reps) || 0;
+            const lbs = parseFloat(w.weight) || 0;
+            dailyVol += (s * r * lbs);
+          }
+        });
+      }
+    });
+    return dailyVol > 0 ? dailyVol : null;
+  });
+
+  // 3. UI Optimization
   const skipLabels = dates.length > 30 ? Math.ceil(dates.length / 15) : 1;
   const displayLabels = labels.map((l, i) => i % skipLabels === 0 ? l : '');
 
+  // 4. Draw Standard Charts
   drawLineChart('score-chart', displayLabels, scores, '#3b82f6', '0-100');
   drawLineChart('sleep-chart', displayLabels, sleepVals, '#818cf8');
   drawLineChart('weight-chart', displayLabels, weightVals, '#f472b6');
   drawBarChart('steps-chart', displayLabels, stepVals, '#f59e0b');
   drawBarChart('cal-chart', displayLabels, calVals, '#34d399');
+
+  // 5. Draw the New Volume Chart
+  drawBarChart('volume-trend-chart', displayLabels, volumeVals, '#fbbf24');
+  
+  drawBarChart('exercise-mins-chart', displayLabels, minsVals, 'var(--exercise)');
+
+	// Optional: Add a "Total Minutes" summary hint
+	const minsHint = document.getElementById('exercise-mins-hint');
+	if (minsHint) {
+	  const totalMins = minsVals.reduce((a, b) => a + (b || 0), 0);
+	  minsHint.textContent = `Total active time: ${Math.round(totalMins / 60)}h ${totalMins % 60}m`;
+	}
+
+  // 6. Update Stats and Strength Specifics
+  renderStrengthTrend();
+  
+  const volHint = document.getElementById('volume-stats-hint');
+  if (volHint) {
+    const totalPeriodVol = volumeVals.reduce((a, b) => a + (b || 0), 0);
+    volHint.textContent = `Total weight moved this period: ${totalPeriodVol.toLocaleString()} lbs`;
+  }
+
+  // --- FINAL STEP: RENDER THE PR DASHBOARD ---
+  renderPRDashboard(); 
 }
 
 function drawLineChart(id, labels, data, color, yRange) {
@@ -3865,6 +4307,47 @@ function drawBarChart(id, labels, data, color) {
     else ctx.rect(x, y, barW, barH);
     ctx.fill();
   });
+}
+
+function renderPRDashboard() {
+  const pid = state.currentProfile;
+  const profileData = state.data[pid] || {};
+  const container = document.getElementById('pr-list-container');
+  if (!container) return;
+
+  const prs = {}; // Format: { "Overhead Press": 100, "Bench Press": 225 }
+
+  // 1. Scan all dates for max weights
+  Object.values(profileData).forEach(day => {
+    const sessions = day.exercise?.sessions || [];
+    sessions.forEach(sess => {
+      if (sess.workouts) {
+        sess.workouts.forEach(w => {
+          if (typeof w === 'object' && w.name && w.weight !== 'BW') {
+            const weight = parseFloat(w.weight) || 0;
+            if (!prs[w.name] || weight > prs[w.name]) {
+              prs[w.name] = weight;
+            }
+          }
+        });
+      }
+    });
+  });
+
+  // 2. Sort and Render
+  const sortedPrs = Object.entries(prs).sort((a, b) => b[1] - a[1]); // Heaviest lifts first
+
+  if (sortedPrs.length === 0) {
+    container.innerHTML = '<div class="text-muted" style="grid-column: span 2; text-align: center; padding: 10px;">No weighted lifts logged yet.</div>';
+    return;
+  }
+
+  container.innerHTML = sortedPrs.map(([name, weight]) => `
+    <div style="background: var(--surface2); padding: 10px; border-radius: 8px; border-left: 3px solid #fbbf24;">
+      <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">${name}</div>
+      <div style="font-size: 16px; font-weight: 800; color: var(--text);">${weight}<span style="font-size: 12px; font-weight: 400; margin-left: 2px;">lbs</span></div>
+    </div>
+  `).join('');
 }
 
 // ============================================================
@@ -4208,41 +4691,48 @@ function applyScreenshotData() {
       document.getElementById('sleep-quality-input').value = d.qualityScore;
       saveSleepQualityScore(d.qualityScore);
     }
-    if (d.totalH != null) document.getElementById('s-total-h').value = d.totalH;
-    if (d.totalM != null) document.getElementById('s-total-m').value = d.totalM;
-    if (d.deepH != null) document.getElementById('s-deep-h').value = d.deepH;
-    if (d.deepM != null) document.getElementById('s-deep-m').value = d.deepM;
-    if (d.lightH != null) document.getElementById('s-light-h').value = d.lightH;
-    if (d.lightM != null) document.getElementById('s-light-m').value = d.lightM;
-    if (d.remH != null) document.getElementById('s-rem-h').value = d.remH;
-    if (d.remM != null) document.getElementById('s-rem-m').value = d.remM;
-    if (d.awakeH != null) document.getElementById('s-awake-h').value = d.awakeH;
-    if (d.awakeM != null) document.getElementById('s-awake-m').value = d.awakeM;
-    if (d.wakeups != null) document.getElementById('s-wakeups').value = d.wakeups;
-    if (d.hr != null) document.getElementById('s-hr').value = d.hr;
-    if (d.breath != null) document.getElementById('s-breath').value = d.breath;
-    if (d.efficiency != null) document.getElementById('s-efficiency').value = d.efficiency;
-    if (d.fellAsleep) document.getElementById('s-fellasleep').value = d.fellAsleep;
-    
+    const sleepMap = {
+      totalH:'s-total-h', totalM:'s-total-m', deepH:'s-deep-h', deepM:'s-deep-m',
+      lightH:'s-light-h', lightM:'s-light-m', remH:'s-rem-h', remM:'s-rem-m',
+      awakeH:'s-awake-h', awakeM:'s-awake-m', wakeups:'s-wakeups', hr:'s-hr',
+      breath:'s-breath', efficiency:'s-efficiency', fellAsleep:'s-fellasleep'
+    };
+    Object.entries(sleepMap).forEach(([key, id]) => {
+      const el = document.getElementById(id);
+      if (el && d[key] != null) el.value = d[key];
+    });
     updateSleepScore();
     renderSleepSummary();
     
   } else if (screenshotImportTarget === 'exercise') {
+    // 1. Fill Daily Activity basics
     if (d.steps != null) document.getElementById('e-steps').value = d.steps;
     if (d.standHours != null) document.getElementById('e-stand').value = d.standHours;
     if (d.activeCal != null) document.getElementById('e-active-cal').value = d.activeCal;
-
-    // --- SAFETY FILTER FOR "14/60" FORMAT ---
+    if (d.distance != null) document.getElementById('e-distance').value = d.distance;
+    if (d.flights != null) document.getElementById('e-flights').value = d.flights;
+    
     if (d.totalCal != null) {
-      // This splits "14/60" at the slash and takes the first part "14"
       const cleanMins = String(d.totalCal).split('/')[0].trim();
       document.getElementById('e-mins').value = parseInt(cleanMins);
     }
-    // ----------------------------------------
 
-    if (d.distance != null) document.getElementById('e-distance').value = d.distance;
-    if (d.flights != null) document.getElementById('e-flights').value = d.flights;
-} else if (screenshotImportTarget === 'weight') {
+    // 2. NEW: Handle the structured workout rows (Lifts/Sets/Reps)
+    if (d.workouts && d.workouts.length > 0) {
+      // First, open the Session Modal if it isn't already
+      showAddSessionModal();
+      
+      // AI usually identifies the first lift as the Type
+      document.getElementById('sess-type').value = d.type || d.workouts[0].name;
+      
+      const list = document.getElementById('sess-workouts-list');
+      list.innerHTML = ''; // Clear defaults
+      
+      setWorkoutType('strength');
+      d.workouts.forEach(w => addWorkoutRow(w));
+    }
+
+  } else if (screenshotImportTarget === 'weight') {
     const map = { weight:'w-weight', bf:'w-bf', vf:'w-vf', mm:'w-mm', sm:'w-sm',
       subf:'w-subf', water:'w-water', bone:'w-bone', protein:'w-protein', bmr:'w-bmr', metage:'w-metage' };
     Object.entries(map).forEach(([key, id]) => {
@@ -4251,7 +4741,7 @@ function applyScreenshotData() {
   }
 
   closeModal('screenshot-import-modal');
-  showToast('✓ Form filled from screenshot! Review and save.');
+  showToast('✓ Form filled from screenshot!');
 }
 
 // ============================================================
